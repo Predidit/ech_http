@@ -4,10 +4,9 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:code_assets/code_assets.dart';
 import 'package:crypto/crypto.dart';
+import 'package:ech_http/src/build_support/prebuilt.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
-
-import '../hook/prebuilt.dart';
 
 const _revision = 'cff1385e77b9b2095558fa625b3c35d589ffe09b';
 

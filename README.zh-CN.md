@@ -186,7 +186,7 @@ hooks:
 ```
 
 - 配置路径相对于使用该库的 `pubspec.yaml`。
-- 构建钩子会依据 `hook/dependencies.json` 中的 SHA-256 散列严格核验下载档案的完整性。
+- 构建钩子会依据 `lib/src/build_support/dependencies.json` 中的 SHA-256 散列严格核验下载档案的完整性。
 - 每次构建都会校验解压文件；若本地解压文件损坏或被修改，钩子会自动基于缓存的压缩包进行自愈修复。
 
 ---

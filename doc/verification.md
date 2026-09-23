@@ -40,7 +40,7 @@ Precompiled dependency SDKs (statically built libcurl 8.22.0 + BoringSSL) are ho
 | [libechhttp-android-build](https://github.com/Predidit/libechhttp-android-build) | `v0.1.0` | Android: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` |
 | [libechhttp-linux-build](https://github.com/Predidit/libechhttp-linux-build) | `v0.1.0` | Linux: `x64`, `arm64` |
 
-All release archives and their SHA-256 digests are pinned in [hook/dependencies.json](../hook/dependencies.json).
+All release archives and their SHA-256 digests are pinned in [lib/src/build_support/dependencies.json](../lib/src/build_support/dependencies.json).
 
 ---
 

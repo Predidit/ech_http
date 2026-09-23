@@ -40,7 +40,7 @@
 | [libechhttp-android-build](https://github.com/Predidit/libechhttp-android-build) | `v0.1.0` | Android: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` |
 | [libechhttp-linux-build](https://github.com/Predidit/libechhttp-linux-build) | `v0.1.0` | Linux: `x64`, `arm64` |
 
-每个 SDK 压缩包的 SHA-256 散列均固化在 [hook/dependencies.json](../hook/dependencies.json) 中。
+每个 SDK 压缩包的 SHA-256 散列均固化在 [lib/src/build_support/dependencies.json](../lib/src/build_support/dependencies.json) 中。
 
 ---
 

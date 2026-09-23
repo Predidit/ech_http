@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Live End-to-End Suite**: Added environment-variable-driven live network tests for ECH validation, authenticated retries, and proxy tunneling (`test/live_ech_test.dart`).
 
 ### Changed
+- Move build helpers and dependency pins outside the reserved `hook/` directory for pub.dev upload compatibility.
 - **Build Hook Acceleration**: Switched to compiling only the C++ bridge locally via CMake/Ninja (~15 s cold builds), eliminating local compilation of BoringSSL and libcurl from source.
 - **Documentation Overhaul**: Restructured all project documentation, added comprehensive English and Chinese guides, Mermaid architecture diagrams, and multi-platform verification records.
 

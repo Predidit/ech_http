@@ -186,7 +186,7 @@ hooks:
 ```
 
 - Paths are relative to the consuming project's `pubspec.yaml`.
-- The build hook verifies the SHA-256 checksum of downloaded archives against `hook/dependencies.json`.
+- The build hook verifies the SHA-256 checksum of downloaded archives against `lib/src/build_support/dependencies.json`.
 - Cached archives are validated on each build; any damaged or modified extracted files are automatically repaired from the cached archive.
 
 ---

@@ -7,7 +7,7 @@ import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 import 'package:path/path.dart' as p;
 
-import 'prebuilt.dart';
+import 'package:ech_http/src/build_support/prebuilt.dart';
 
 Future<void> main(List<String> args) async {
   await build(args, (input, output) async {
@@ -33,13 +33,19 @@ Future<void> main(List<String> args) async {
         p.join(shared, 'prebuilt');
     await Directory(out).create(recursive: true);
     final runner = _Runner(p.join(out, 'native-build.log'));
-    final manifestPath = p.join(root, 'hook', 'dependencies.json');
+    final manifestPath = p.join(
+      root,
+      'lib',
+      'src',
+      'build_support',
+      'dependencies.json',
+    );
     final manifest =
         jsonDecode(await File(manifestPath).readAsString())
             as Map<String, dynamic>;
     output.dependencies.addAll([
       Uri.file(manifestPath),
-      Uri.file(p.join(root, 'hook', 'prebuilt.dart')),
+      Uri.file(p.join(root, 'lib', 'src', 'build_support', 'prebuilt.dart')),
     ]);
     await for (final file in Directory(
       p.join(root, 'src'),

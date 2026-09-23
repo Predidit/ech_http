@@ -107,7 +107,7 @@ When dependency versions (such as libcurl or BoringSSL) or compiler flags change
    python tool/update_prebuilt.py win32=v0.1.1 darwin=v0.1.2 android=v0.1.1 linux=v0.1.1
    ```
    *(Requires Python 3.9+ and an authenticated GitHub CLI `gh`)*.
-3. Review the modified pins and SHA-256 digests in `hook/dependencies.json`.
+3. Review the modified pins and SHA-256 digests in `lib/src/build_support/dependencies.json`.
 4. Trigger the multi-platform GitHub Actions CI matrix to test build hooks across all platforms.
 
 > [!CAUTION] Immutability Requirement
@@ -160,7 +160,8 @@ When preparing an official release:
      dart pub publish --dry-run
      ```
    - Carefully review the printed file list.
-   - **Must include**: `lib/`, `hook/`, `hook/dependencies.json`, `src/` (bridge sources, CMake files, `cacert.pem`, license files), `LICENSE`, `README.md`, `CHANGELOG.md`, `THIRD_PARTY_NOTICES.md`.
+   - **Must include**: `lib/` (including `src/build_support/prebuilt.dart` and `src/build_support/dependencies.json`), `hook/build.dart`, `src/` (bridge sources, CMake files, `cacert.pem`, license files), `LICENSE`, `README.md`, `CHANGELOG.md`, `THIRD_PARTY_NOTICES.md`.
+   - Keep helper scripts and data outside the reserved `hook/` directory; pub.dev validates hook filenames on upload.
    - **Must exclude**: `.dart_tool/`, local build caches, downloaded native ZIPs/binaries, logs, IDE files (`.vscode/`, `.idea/`).
 4. **Publish**:
    - Once all approvals and checks pass, publish from the reviewed commit:

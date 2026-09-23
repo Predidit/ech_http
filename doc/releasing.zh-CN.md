@@ -107,7 +107,7 @@ dart run example/ech_http_example.dart https://crypto.cloudflare.com/cdn-cgi/tra
    python tool/update_prebuilt.py win32=v0.1.1 darwin=v0.1.2 android=v0.1.1 linux=v0.1.1
    ```
    *(要求本地装有 Python 3.9+ 且具备经过身份授权的 GitHub CLI `gh`)*。
-3. 检查并核对 `hook/dependencies.json` 中自动更新的下载链接与 SHA-256 散列值。
+3. 检查并核对 `lib/src/build_support/dependencies.json` 中自动更新的下载链接与 SHA-256 散列值。
 4. 提交变更并触发全平台 CI 流水线验证构建钩子。
 
 > [!CAUTION] 资产不可篡改原则
@@ -160,7 +160,8 @@ dart run example/ech_http_example.dart https://crypto.cloudflare.com/cdn-cgi/tra
      dart pub publish --dry-run
      ```
    - 仔细审查终端输出的文件打包列表：
-   - **必须包含**：`lib/`、`hook/`（含 `dependencies.json`）、`src/`（桥接代码、CMake 脚本、`cacert.pem` 及协议文件）、`LICENSE`、`README.md`、`CHANGELOG.md`、`THIRD_PARTY_NOTICES.md`。
+   - **必须包含**：`lib/`（含 `src/build_support/prebuilt.dart` 和 `src/build_support/dependencies.json`）、`hook/build.dart`、`src/`（桥接代码、CMake 脚本、`cacert.pem` 及协议文件）、`LICENSE`、`README.md`、`CHANGELOG.md`、`THIRD_PARTY_NOTICES.md`。
+   - 辅助脚本和数据应放在保留的 `hook/` 目录之外；pub.dev 会在上传时检查钩子文件名。
    - **严禁包含**：`.dart_tool/` 缓存、构建生成的临时原生目标、下载的 SDK 压缩包、测试日志文件或 IDE 本地配置（`.vscode/`、`.idea/`）。
 4. **正式发布**：
    - 确认所有审查项无误后，由拥有发布权限的维护者在本地执行：
