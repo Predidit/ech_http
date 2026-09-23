@@ -1,0 +1,6 @@
+.dart_tool/
+build/
+coverage/
+pubspec.lock
+*.jpg
+*.log

@@ -1,0 +1,6 @@
+#pragma once
+#include <string>
+inline const std::string &eh_ca_bundle() {
+  static const std::string roots = R"ECH_CA_BUNDLE(@EH_CA_PEM@)ECH_CA_BUNDLE";
+  return roots;
+}

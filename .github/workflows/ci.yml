@@ -1,0 +1,89 @@
+name: Native platforms
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform checks to run
+        type: choice
+        default: all
+        options: [all, desktop, android, apple]
+permissions:
+  contents: read
+concurrency:
+  group: native-${{ github.ref }}-${{ inputs.platform || 'all' }}
+  cancel-in-progress: true
+
+jobs:
+  desktop:
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'desktop'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-22.04-arm, windows-latest, macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build g++
+      - if: runner.os == 'macOS'
+        run: brew install cmake ninja
+      - run: dart pub get
+      - run: dart format --output=none --set-exit-if-changed lib hook test example tool
+      - run: dart analyze --fatal-infos
+      - run: dart test -r expanded
+      - if: runner.os == 'Windows'
+        run: |
+          dart run tool/check_native_build.dart windows arm64
+          dart run tool/check_native_build.dart windows ia32
+      - run: dart pub publish --dry-run
+
+  android:
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'android'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build g++
+      - run: dart pub get
+      - run: dart run tool/create_flutter_smoke.dart
+      - working-directory: build/flutter_smoke
+        run: |
+          flutter pub get
+          flutter build apk --debug --target-platform android-arm,android-arm64,android-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-smoke
+          path: build/flutter_smoke/build/app/outputs/flutter-apk/*.apk
+
+  apple:
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'apple'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: brew install cmake ninja
+      - run: dart pub get
+      - run: dart run tool/check_native_build.dart ios arm64 device
+      - run: dart run tool/check_native_build.dart ios arm64 simulator
+      - run: dart run tool/check_native_build.dart ios x64 simulator
+      - run: dart run tool/check_native_build.dart macos x64
+      - run: dart run tool/check_native_build.dart macos arm64
+      - run: dart run tool/create_flutter_smoke.dart
+      - working-directory: build/flutter_smoke
+        run: |
+          flutter pub get
+          flutter build ios --release --no-codesign
+          flutter build ios --simulator --debug
+          flutter build macos --debug
