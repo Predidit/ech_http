@@ -35,10 +35,10 @@ Precompiled dependency SDKs (statically built libcurl 8.22.0 + BoringSSL) are ho
 
 | Build Repository | Release Tag | Target Platforms & Architectures |
 | :--- | :--- | :--- |
-| [libechhttp-win32-build](https://github.com/Predidit/libechhttp-win32-build) | `v0.1.0` | Windows: `x64`, `arm64`, `ia32` |
-| [libechhttp-darwin-build](https://github.com/Predidit/libechhttp-darwin-build) | `v0.1.1` | macOS / iOS: `x64`, `arm64` (Device + Simulator) |
-| [libechhttp-android-build](https://github.com/Predidit/libechhttp-android-build) | `v0.1.0` | Android: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` |
-| [libechhttp-linux-build](https://github.com/Predidit/libechhttp-linux-build) | `v0.1.0` | Linux: `x64`, `arm64` |
+| [libechhttp-win32-build](https://github.com/ech-research/libechhttp-win32-build) | `v0.1.0` | Windows: `x64`, `arm64`, `ia32` |
+| [libechhttp-darwin-build](https://github.com/ech-research/libechhttp-darwin-build) | `v0.1.1` | macOS / iOS: `x64`, `arm64` (Device + Simulator) |
+| [libechhttp-android-build](https://github.com/ech-research/libechhttp-android-build) | `v0.1.0` | Android: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` |
+| [libechhttp-linux-build](https://github.com/ech-research/libechhttp-linux-build) | `v0.1.0` | Linux: `x64`, `arm64` |
 
 All release archives and their SHA-256 digests are pinned in [lib/src/build_support/dependencies.json](../lib/src/build_support/dependencies.json).
 

@@ -12,72 +12,72 @@
   "targets": {
     "android-arm": {
       "release": "v0.1.0",
-      "url": "https://github.com/Predidit/libechhttp-android-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-android-arm.zip",
+      "url": "https://github.com/ech-research/libechhttp-android-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-android-arm.zip",
       "sha256": "c40a4ec750c5616e20f916da4a9b06277c670e828e5e44d19042c2b3c9a34348"
     },
     "android-arm64": {
       "release": "v0.1.0",
-      "url": "https://github.com/Predidit/libechhttp-android-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-android-arm64.zip",
+      "url": "https://github.com/ech-research/libechhttp-android-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-android-arm64.zip",
       "sha256": "5b2b125396921ce00dc3026d8943276f66786e9334f708391e1afcb23462ae3a"
     },
     "android-ia32": {
       "release": "v0.1.0",
-      "url": "https://github.com/Predidit/libechhttp-android-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-android-ia32.zip",
+      "url": "https://github.com/ech-research/libechhttp-android-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-android-ia32.zip",
       "sha256": "5f04e618bca77df0ba39d9b56990821a2758866aa886f3dcc3c504f6aa41efc7"
     },
     "android-x64": {
       "release": "v0.1.0",
-      "url": "https://github.com/Predidit/libechhttp-android-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-android-x64.zip",
+      "url": "https://github.com/ech-research/libechhttp-android-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-android-x64.zip",
       "sha256": "b509efa62c3715579fa516fb88162e195298c8198ae90790ebee8309354ad652"
     },
     "ios-arm64-device": {
       "release": "v0.1.1",
-      "url": "https://github.com/Predidit/libechhttp-darwin-build/releases/download/v0.1.1/libechhttp-deps-v0.1.1-ios-arm64-device.zip",
+      "url": "https://github.com/ech-research/libechhttp-darwin-build/releases/download/v0.1.1/libechhttp-deps-v0.1.1-ios-arm64-device.zip",
       "sha256": "c4729ff404c34da954724ef7d55ac427c994ac930756b9743d98d1590d1c8665"
     },
     "ios-arm64-simulator": {
       "release": "v0.1.1",
-      "url": "https://github.com/Predidit/libechhttp-darwin-build/releases/download/v0.1.1/libechhttp-deps-v0.1.1-ios-arm64-simulator.zip",
+      "url": "https://github.com/ech-research/libechhttp-darwin-build/releases/download/v0.1.1/libechhttp-deps-v0.1.1-ios-arm64-simulator.zip",
       "sha256": "cdc285d065cda36c060f32dd6b5753f00bcb754d47c68032355cdf5e3e6f88b4"
     },
     "ios-x64-simulator": {
       "release": "v0.1.1",
-      "url": "https://github.com/Predidit/libechhttp-darwin-build/releases/download/v0.1.1/libechhttp-deps-v0.1.1-ios-x64-simulator.zip",
+      "url": "https://github.com/ech-research/libechhttp-darwin-build/releases/download/v0.1.1/libechhttp-deps-v0.1.1-ios-x64-simulator.zip",
       "sha256": "69b04374a32f962742fcb868e34966c19e4716138ec3534a2574f5d09e67bdd3"
     },
     "linux-arm64": {
       "release": "v0.1.0",
-      "url": "https://github.com/Predidit/libechhttp-linux-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-linux-arm64.zip",
+      "url": "https://github.com/ech-research/libechhttp-linux-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-linux-arm64.zip",
       "sha256": "d7348bf94ee6fecc080b77b6d385795991dbda075a2743ec9ca5bc52718cdd6a"
     },
     "linux-x64": {
       "release": "v0.1.0",
-      "url": "https://github.com/Predidit/libechhttp-linux-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-linux-x64.zip",
+      "url": "https://github.com/ech-research/libechhttp-linux-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-linux-x64.zip",
       "sha256": "fbf35efaf08ef5f6240777fe695de4685c4bc688639052e79584bed2443129c4"
     },
     "macos-arm64": {
       "release": "v0.1.1",
-      "url": "https://github.com/Predidit/libechhttp-darwin-build/releases/download/v0.1.1/libechhttp-deps-v0.1.1-macos-arm64.zip",
+      "url": "https://github.com/ech-research/libechhttp-darwin-build/releases/download/v0.1.1/libechhttp-deps-v0.1.1-macos-arm64.zip",
       "sha256": "6181cb068a44f79189e1f474dbc164570679493c9ced67d35b28558a06d82652"
     },
     "macos-x64": {
       "release": "v0.1.1",
-      "url": "https://github.com/Predidit/libechhttp-darwin-build/releases/download/v0.1.1/libechhttp-deps-v0.1.1-macos-x64.zip",
+      "url": "https://github.com/ech-research/libechhttp-darwin-build/releases/download/v0.1.1/libechhttp-deps-v0.1.1-macos-x64.zip",
       "sha256": "6765dfc25e34b8895a72c139c10c671b45d57533bb688f8c21408acdd99d8b42"
     },
     "windows-arm64": {
       "release": "v0.1.0",
-      "url": "https://github.com/Predidit/libechhttp-win32-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-windows-arm64.zip",
+      "url": "https://github.com/ech-research/libechhttp-win32-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-windows-arm64.zip",
       "sha256": "4e898066a176de94decf8a3fab811b94e50766376a460183dcfae64b18b3f1f8"
     },
     "windows-ia32": {
       "release": "v0.1.0",
-      "url": "https://github.com/Predidit/libechhttp-win32-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-windows-ia32.zip",
+      "url": "https://github.com/ech-research/libechhttp-win32-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-windows-ia32.zip",
       "sha256": "49c2a64f0e2a7613644cdc594645dc5436fb984de33d0fe2081666102fcecd8e"
     },
     "windows-x64": {
       "release": "v0.1.0",
-      "url": "https://github.com/Predidit/libechhttp-win32-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-windows-x64.zip",
+      "url": "https://github.com/ech-research/libechhttp-win32-build/releases/download/v0.1.0/libechhttp-deps-v0.1.0-windows-x64.zip",
       "sha256": "aa56268cb635b721e82a51bb62505927c5f98b612c4bf6af37936d66cae189b0"
     }
   }

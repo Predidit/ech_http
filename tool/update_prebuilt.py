@@ -24,7 +24,7 @@ def main():
         family, tag = item.split('=', 1)
         if family not in TARGETS or not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', tag):
             raise SystemExit(f'Invalid family or version: {item}')
-        repo = f'Predidit/libechhttp-{family}-build'
+        repo = f'ech-research/libechhttp-{family}-build'
         release = json.loads(subprocess.check_output([
             'gh', 'api', f'repos/{repo}/releases/tags/{tag}',
         ], text=True, encoding='utf-8'))

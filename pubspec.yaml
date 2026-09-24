@@ -1,8 +1,8 @@
 name: ech_http
 description: An HTTP client with explicit TLS Encrypted Client Hello, proxy support, and a C++ backend bundled through Dart build hooks.
-version: 0.1.1
-repository: https://github.com/Predidit/ech_http
-issue_tracker: https://github.com/Predidit/ech_http/issues
+version: 0.1.2
+repository: https://github.com/ech-research/ech_http
+issue_tracker: https://github.com/ech-research/ech_http/issues
 # Deliberately public test-only key; never used by the runtime library.
 false_secrets:
   - /test/fixtures/localhost-key.pem

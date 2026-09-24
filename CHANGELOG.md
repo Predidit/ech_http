@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.2]
+
+### Changed
+- Update repository, issue tracker, dependency SDK download URLs, and maintainer tooling to the `ech-research` GitHub organization.
+- Keep the existing SDK release versions and SHA-256 pins; no native dependency rebuild is required.
+
+---
+
 ## [0.1.1]
 
 ### Added

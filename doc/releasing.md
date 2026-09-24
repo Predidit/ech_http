@@ -92,10 +92,10 @@ Set `ECH_PROXY`, `ECH_CONFIG_DOMAIN`, or `ECH_ADDRESSES` in your environment to 
 
 `ech_http` pins versioned precompiled SDKs for 14 target architectures across four public build repositories:
 
-- [libechhttp-win32-build](https://github.com/Predidit/libechhttp-win32-build/releases) (Windows: x64, arm64, ia32)
-- [libechhttp-darwin-build](https://github.com/Predidit/libechhttp-darwin-build/releases) (macOS / iOS: x64, arm64)
-- [libechhttp-android-build](https://github.com/Predidit/libechhttp-android-build/releases) (Android: arm64-v8a, armeabi-v7a, x86_64, x86)
-- [libechhttp-linux-build](https://github.com/Predidit/libechhttp-linux-build/releases) (Linux: x64, arm64)
+- [libechhttp-win32-build](https://github.com/ech-research/libechhttp-win32-build/releases) (Windows: x64, arm64, ia32)
+- [libechhttp-darwin-build](https://github.com/ech-research/libechhttp-darwin-build/releases) (macOS / iOS: x64, arm64)
+- [libechhttp-android-build](https://github.com/ech-research/libechhttp-android-build/releases) (Android: arm64-v8a, armeabi-v7a, x86_64, x86)
+- [libechhttp-linux-build](https://github.com/ech-research/libechhttp-linux-build/releases) (Linux: x64, arm64)
 
 ### Upgrading Precompiled SDKs
 

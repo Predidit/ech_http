@@ -35,10 +35,10 @@
 
 | 构建仓库 | 发布 Tag | 支持的目标平台与架构 |
 | :--- | :--- | :--- |
-| [libechhttp-win32-build](https://github.com/Predidit/libechhttp-win32-build) | `v0.1.0` | Windows: `x64`, `arm64`, `ia32` |
-| [libechhttp-darwin-build](https://github.com/Predidit/libechhttp-darwin-build) | `v0.1.1` | macOS / iOS: `x64`, `arm64`（真机 + 模拟器） |
-| [libechhttp-android-build](https://github.com/Predidit/libechhttp-android-build) | `v0.1.0` | Android: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` |
-| [libechhttp-linux-build](https://github.com/Predidit/libechhttp-linux-build) | `v0.1.0` | Linux: `x64`, `arm64` |
+| [libechhttp-win32-build](https://github.com/ech-research/libechhttp-win32-build) | `v0.1.0` | Windows: `x64`, `arm64`, `ia32` |
+| [libechhttp-darwin-build](https://github.com/ech-research/libechhttp-darwin-build) | `v0.1.1` | macOS / iOS: `x64`, `arm64`（真机 + 模拟器） |
+| [libechhttp-android-build](https://github.com/ech-research/libechhttp-android-build) | `v0.1.0` | Android: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` |
+| [libechhttp-linux-build](https://github.com/ech-research/libechhttp-linux-build) | `v0.1.0` | Linux: `x64`, `arm64` |
 
 每个 SDK 压缩包的 SHA-256 散列均固化在 [lib/src/build_support/dependencies.json](../lib/src/build_support/dependencies.json) 中。
 

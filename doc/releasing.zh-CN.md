@@ -92,10 +92,10 @@ dart run example/ech_http_example.dart https://crypto.cloudflare.com/cdn-cgi/tra
 
 `ech_http` 依赖 4 个独立的公开构建仓库为 14 个目标平台与架构打包发布预编译 SDK：
 
-- [libechhttp-win32-build](https://github.com/Predidit/libechhttp-win32-build/releases)（Windows: x64, arm64, ia32）
-- [libechhttp-darwin-build](https://github.com/Predidit/libechhttp-darwin-build/releases)（macOS / iOS: x64, arm64）
-- [libechhttp-android-build](https://github.com/Predidit/libechhttp-android-build/releases)（Android: arm64-v8a, armeabi-v7a, x86_64, x86）
-- [libechhttp-linux-build](https://github.com/Predidit/libechhttp-linux-build/releases)（Linux: x64, arm64）
+- [libechhttp-win32-build](https://github.com/ech-research/libechhttp-win32-build/releases)（Windows: x64, arm64, ia32）
+- [libechhttp-darwin-build](https://github.com/ech-research/libechhttp-darwin-build/releases)（macOS / iOS: x64, arm64）
+- [libechhttp-android-build](https://github.com/ech-research/libechhttp-android-build/releases)（Android: arm64-v8a, armeabi-v7a, x86_64, x86）
+- [libechhttp-linux-build](https://github.com/ech-research/libechhttp-linux-build/releases)（Linux: x64, arm64）
 
 ### 升级预编译依赖版本
 
