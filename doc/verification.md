@@ -4,13 +4,22 @@
 
 This document provides a detailed technical report of the multi-platform verification status, automated CI test coverage, binary footprint metrics, and known deployment boundaries for `ech_http`.
 
+The 0.2.0 gzip implementation (`f77946e`) passed the complete
+[platform CI run](https://github.com/ech-research/ech_http/actions/runs/36254850193).
+Each of the five desktop runners (Windows x64, Linux x64/arm64, macOS x64/arm64)
+passed 73 offline tests, static analysis, and publication dry-run with zero
+warnings; the 2 opt-in public-network tests were skipped. All 14 native targets
+compiled. Flutter Android APK, unsigned iOS release app, iOS simulator debug app,
+and macOS debug app packaging passed. This update did not repeat physical mobile
+device or live ECH verification. See [gzip implementation and size measurements](gzip-support.zh-CN.md).
+
 The event-delivery update was verified on Windows x64 / Dart 3.13.4: static
 analysis and all 37 offline tests passed; 2 opt-in live tests were skipped.
 Coverage includes timer-free delivery, delayed listeners, repeated pauses,
 paused cancellation, bounded messages, closed ports, and active transfers during
 isolate-group teardown. The native smoke tool also compiled and received a
 terminal event. Interactive Flutter hot reload/restart has not been verified
-for this update; the platform matrix below records earlier verification.
+for that update; the platform matrix below also retains earlier live verification.
 
 ---
 
@@ -23,16 +32,16 @@ We distinguish between three tiers of verification:
 
 | Platform | Architecture / Target | Verification Tier | Verification Details | Known Gaps / Boundary |
 | :--- | :--- | :---: | :--- | :--- |
-| **Windows** | `x64` | **Tier 1** | Native build hook, 31 offline tests, publication dry-run, live proxy & ECH test | Execution on legacy Windows versions prior to Windows 10 |
+| **Windows** | `x64` | **Tier 1** | Native build hook, 73 offline tests, publication dry-run, earlier live proxy & ECH test | Execution on legacy Windows versions prior to Windows 10 |
 | **Windows** | `arm64`, `ia32` | **Tier 2** | Cross-compilation and bridge linking via MSVC 14.51 | Physical ARM64/IA32 Windows runtime execution |
-| **Linux** | `x64`, `arm64` | **Tier 1** | Native build hooks, 31 offline tests, publication dry-run on Ubuntu runners | Linux distributions with `glibc < 2.35` or non-glibc (musl) |
-| **macOS** | `x64` (Intel) | **Tier 1** | Native build hook, 31 offline tests, Flutter Debug application build | Signed App Store / notarized runtime execution |
-| **macOS** | `arm64` (Apple Silicon) | **Tier 1** | Native build hook, 31 offline tests, Flutter Debug application build | Signed App Store / notarized runtime execution |
+| **Linux** | `x64`, `arm64` | **Tier 1** | Native build hooks, 73 offline tests, publication dry-run on Ubuntu runners | Linux distributions with `glibc < 2.35` or non-glibc (musl) |
+| **macOS** | `x64` (Intel) | **Tier 1** | Native build hook, 73 offline tests, Flutter Debug application build | Signed App Store / notarized runtime execution |
+| **macOS** | `arm64` (Apple Silicon) | **Tier 1** | Native build hook, 73 offline tests, Flutter Debug application build | Signed App Store / notarized runtime execution |
 | **iOS** | `arm64` (Physical Device) | **Tier 2** | Bridge build, Flutter Release app build with `--no-codesign` | Signed device execution, TestFlight, App Store review |
 | **iOS** | `arm64`, `x64` (Simulator) | **Tier 2** | Bridge build, Flutter simulator Debug app packaging | In-simulator runtime execution |
 | **Android** | `arm64-v8a` | **Tier 1** | Physical device run (API 35), live ECH handshake, authenticated retry, connection reuse | Non-standard custom Android ROMs |
 | **Android** | `armeabi-v7a`, `x86_64` | **Tier 2** | Flutter Debug APK packaging for both ABIs | Runtime execution on physical 32-bit ARM / x86_64 devices |
-| **Android** | `x86` | **Tier 2** | Local NDK r30 bridge build and link check | 32-bit x86 Android runtime execution |
+| **Android** | `x86` | **Tier 2** | NDK bridge build and link check in CI | 32-bit x86 Android runtime execution |
 | **Web / HarmonyOS** | All | **Tier 3** | Not supported by this native C++ FFI architecture | N/A |
 
 ---

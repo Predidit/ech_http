@@ -4,10 +4,17 @@
 
 本文件详细记录了 `ech_http` 的多平台验证状态、持续集成（CI）自动化测试覆盖率、底层二进制产物体积指标以及工程分发边界。
 
+0.2.0 gzip 实现（`f77946e`）已通过[完整平台 CI](https://github.com/ech-research/ech_http/actions/runs/36254850193)。
+五个桌面运行器（Windows x64、Linux x64/arm64、macOS x64/arm64）各通过 73 项离线测试、
+静态分析与零警告的发布预检；2 项需显式配置的公网测试跳过。全部 14 个原生目标编译通过。
+Flutter Android APK、iOS 未签名 Release 应用、iOS 模拟器 Debug 应用与 macOS Debug
+应用打包均通过。本次未重跑移动端实体机或公网 ECH 验证。
+实现说明与最终体积数据见 [gzip 文档](gzip-support.zh-CN.md)。
+
 事件投递改造已在 Windows x64 / Dart 3.13.4 上验证：静态分析与 37 项离线测试通过，
 2 项需显式配置的公网测试跳过。覆盖无周期定时器传输、延迟监听、反复暂停恢复、暂停期间
 取消、消息额度、端口关闭及传输期间销毁 isolate group。native smoke 工具也已编译并
-收到结束事件。本次尚未验证 Flutter 交互式热重载/热重启；下方平台矩阵记录此前的验证结果。
+收到结束事件。该次尚未验证 Flutter 交互式热重载/热重启；下方平台矩阵也保留此前的公网验证结果。
 
 ---
 
@@ -20,16 +27,16 @@
 
 | 目标系统 | 目标架构 / ABI | 验证级别 | 验证详情 | 已知边界与暂未覆盖项 |
 | :--- | :--- | :---: | :--- | :--- |
-| **Windows** | `x64` | **Tier 1** | 原生 build hook、31 项离线测试、pub 发布 dry-run、真实代理与 ECH 请求 | Windows 10 之前的早期 Windows 版本 |
+| **Windows** | `x64` | **Tier 1** | 原生 build hook、73 项离线测试、pub 发布 dry-run、此前真实代理与 ECH 请求 | Windows 10 之前的早期 Windows 版本 |
 | **Windows** | `arm64`, `ia32` | **Tier 2** | 基于 MSVC 14.51 工具链的交叉编译与动态链接 | ARM64 / IA32 实体 Windows 机器运行时执行 |
-| **Linux** | `x64`, `arm64` | **Tier 1** | 原生 build hook、31 项离线测试、Ubuntu 运行器完整测试通过 | `glibc < 2.35` 的老旧发行版或 Alpine (musl) |
-| **macOS** | `x64` (Intel) | **Tier 1** | 原生 build hook、31 项离线测试、Flutter Debug 应用打包 | App Store 发行签名、Hardened Runtime 与公证 |
-| **macOS** | `arm64` (Apple Silicon) | **Tier 1** | 原生 build hook、31 项离线测试、Flutter Debug 应用打包 | App Store 发行签名、Hardened Runtime 与公证 |
+| **Linux** | `x64`, `arm64` | **Tier 1** | 原生 build hook、73 项离线测试、Ubuntu 运行器完整测试通过 | `glibc < 2.35` 的老旧发行版或 Alpine (musl) |
+| **macOS** | `x64` (Intel) | **Tier 1** | 原生 build hook、73 项离线测试、Flutter Debug 应用打包 | App Store 发行签名、Hardened Runtime 与公证 |
+| **macOS** | `arm64` (Apple Silicon) | **Tier 1** | 原生 build hook、73 项离线测试、Flutter Debug 应用打包 | App Store 发行签名、Hardened Runtime 与公证 |
 | **iOS** | `arm64` (真机) | **Tier 2** | 桥接编译通过，Flutter Release `--no-codesign` 打包成功 | 签名真机运行、TestFlight 分发及 App Store 审核 |
 | **iOS** | `arm64`, `x64` (模拟器) | **Tier 2** | 桥接编译通过，Flutter 模拟器 Debug 应用打包成功 | 模拟器内运行时端到端执行 |
 | **Android** | `arm64-v8a` | **Tier 1** | 真实设备运行（API 35），公网 ECH 握手、认证重试、连接复用均通过 | 各类深度定制的非标准第三方 Android ROM |
 | **Android** | `armeabi-v7a`, `x86_64` | **Tier 2** | Flutter Debug APK 多 ABI 打包测试通过 | 32 位 ARM / x86_64 物理机运行时执行 |
-| **Android** | `x86` | **Tier 2** | 本地 NDK r30 桥接构建与链接核验通过 | 32 位 x86 Android 实体机运行时执行 |
+| **Android** | `x86` | **Tier 2** | CI 中 NDK 桥接构建与链接核验通过 | 32 位 x86 Android 实体机运行时执行 |
 | **Web / 原生鸿蒙** | 全部架构 | **Tier 3** | C++ FFI 原生引擎架构暂不支持 Web 与 HarmonyOS | 不适用 |
 
 ---
