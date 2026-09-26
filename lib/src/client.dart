@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:isolate';
+import 'dart:io' show HttpClientResponseCompressionState;
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -25,6 +26,7 @@ final class EchClient extends http.BaseClient implements Finalizable {
     this.maxResponseBytes = 32 * 1024 * 1024,
     this.maxRequestBytes = 8 * 1024 * 1024,
     this.maxConcurrentRequests = 6,
+    this.autoUncompress = true,
     this.trustedRootsPem,
   }) {
     if (timeout.inMilliseconds <= 0 ||
@@ -59,9 +61,17 @@ final class EchClient extends http.BaseClient implements Finalizable {
   final Uri? proxy;
   final Duration timeout;
   final Duration connectTimeout;
+
+  /// Maximum delivered body bytes, after gzip decoding when enabled.
   final int maxResponseBytes;
   final int maxRequestBytes;
   final int maxConcurrentRequests;
+
+  /// Automatically decodes responses whose Content-Encoding is gzip.
+  ///
+  /// Like dart:io HttpClient, this leaves response headers and their compressed
+  /// Content-Length unchanged. It does not disable gzip request negotiation.
+  final bool autoUncompress;
 
   /// Replaces the bundled Mozilla CA roots for this client, e.g. for private PKI.
   final String? trustedRootsPem;
@@ -126,6 +136,9 @@ final class EchClient extends http.BaseClient implements Finalizable {
     var uri = request.url;
     var method = request.method;
     var headers = Map<String, String>.of(request.headers);
+    if (!headers.keys.any((key) => key.toLowerCase() == 'accept-encoding')) {
+      headers['accept-encoding'] = 'gzip';
+    }
     for (var redirects = 0; ; redirects++) {
       if (_closed) throw http.ClientException('Client is closed', uri);
       operation.check();
@@ -360,7 +373,9 @@ final class _Transfer implements Finalizable {
                   'transfer-encoding',
                 }.contains(e.key.toLowerCase()),
               )
-              .map((e) => '${e.key}: ${e.value}')
+              .map(
+                (e) => e.value.isEmpty ? '${e.key};' : '${e.key}: ${e.value}',
+              )
               .join('\r\n')
               .toNativeUtf8(allocator: arena)
           ..proxy = (client.proxy?.toString() ?? '').toNativeUtf8(
@@ -374,7 +389,8 @@ final class _Transfer implements Finalizable {
           ..bodyLength = bytes.length
           ..timeoutMs = client.timeout.inMilliseconds
           ..connectTimeoutMs = client.connectTimeout.inMilliseconds
-          ..maxResponseBytes = client.maxResponseBytes;
+          ..maxResponseBytes = client.maxResponseBytes
+          ..autoUncompress = client.autoUncompress;
         if (bytes.isNotEmpty) {
           opts.ref.body = arena<Uint8>(bytes.length);
           opts.ref.body.asTypedList(bytes.length).setAll(0, bytes);
@@ -458,6 +474,11 @@ final class _Transfer implements Finalizable {
           code,
           echAccepted: event[2] != 0,
           echRetries: event[3] as int,
+          compressionState: headers['content-encoding'] == 'gzip'
+              ? (client.autoUncompress
+                    ? HttpClientResponseCompressionState.decompressed
+                    : HttpClientResponseCompressionState.compressed)
+              : HttpClientResponseCompressionState.notCompressed,
           contentLength: int.tryParse(headers['content-length'] ?? ''),
           request: original,
           headers: headers,

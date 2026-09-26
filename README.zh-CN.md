@@ -84,7 +84,7 @@ flowchart TD
 
 ```yaml
 dependencies:
-  ech_http: ^0.1.1
+  ech_http: ^0.2.0
   http: ^1.6.0
 ```
 
@@ -207,13 +207,31 @@ hooks:
 | :--- | :--- | :--- |
 | **HTTP 协议版本** | `HTTP/1.1` | 当前版本专注于稳定高兼容传输，暂未启用 HTTP/2 和 HTTP/3。 |
 | **最大并发请求数** | `6` | 每个客户端实例底层的原生并发队列上限，多余请求将进入有序等待队列。 |
-| **单请求响应体积限制** | `32 MiB` | 最大单次响应流体积，超出将抛出异常以防内存溢出。 |
+| **单请求响应体积限制** | `32 MiB` | gzip 解压后的最大单次响应流体积，超出将抛出异常。 |
 | **单请求上传体积限制** | `8 MiB` | 上传数据流在发送前会完整缓冲至原生内存，不适用于超大文件流式直传。 |
 | **总体请求超时 (`timeout`)** | `30 秒` | 单个物理目标地址的总体耗时上限（包含连接、TLS 握手、ECH 重试及数据传输）。 |
 | **连接超时 (`connectTimeout`)** | `10 秒` | 底层 TCP 连接与初始 TLS 握手的超时上限。 |
-| **内容解压** | 手动处理 | 原生层不进行自动 `gzip` 或 `brotli` 解压，建议按需在 Dart 层解码。 |
+| **内容解压** | 自动 gzip | 协商、响应头和长度语义与 Dart HttpClient 一致；`autoUncompress: false` 关闭解码，其他编码原样返回。 |
 | **地址自动故障转移** | 已支持 | 针对 `GET` 和 `HEAD` 请求，在收到 HTTP 响应头之前，若首选 IP 失败将自动顺次尝试 `addresses` 中的备用 IP。 |
 | **重定向安全防御** | 强制执行 | 严禁 HTTPS 降级至 HTTP 明文；跨域重定向时会自动剥离 `Authorization`、`Cookie` 及 `Host` 凭据头。 |
+
+### gzip 行为
+
+默认发送 `Accept-Encoding: gzip`，调用方显式设置的值优先。
+`autoUncompress` 默认为 `true`，仅自动解码 `Content-Encoding: gzip`。
+与 Dart `HttpClient` 一样，关闭解压仍会协商 gzip；如需请求未压缩内容，
+应设置 `Accept-Encoding: identity`。请求正文不会自动压缩。
+
+响应头始终保留原值。使用 `send()` 时，`EchResponse.contentLength` 和
+`Content-Length` 头表示网络传输的压缩体长度，响应流则可能是更大的解压正文；
+`compressionState` 表示是否选择了 gzip 解码。使用 `get()`/`post()` 获取完整
+`http.Response` 时，`contentLength` 等于 `bodyBytes.length`，响应头仍保留传输值。
+
+`maxResponseBytes` 和 256 KiB 原生投递额度均作用于解压后的数据。
+支持拼接的 gzip member；损坏或截断的数据通过响应流报告 `EchException`
+（原生错误码 61），此前可能已交付部分正文。其他编码及没有 `Content-Encoding`
+的 `.gz` 文件原样返回。Range 请求保持 Dart 的协商行为；需要保留编码字节偏移时，
+请设置 `identity` 或关闭解压。详见 [gzip 行为说明](doc/gzip-support.zh-CN.md)。
 
 ---
 
@@ -222,7 +240,7 @@ hooks:
 - [路由与 ECH 发现机制](doc/routing.zh-CN.md) - 深入探讨 DoH 查询机制、服务商共享 ECH 配置（如 Cloudflare 共享节点）、IP 覆盖直连及重定向安全策略。
 - [本地验证与发布指南](doc/releasing.zh-CN.md) - 开发调试、端到端 Live 真实网络测试、环境变量参数表及 pub.dev 发布指南。
 - [平台验证记录与兼容性矩阵](doc/verification.zh-CN.md) - 平台 CI 矩阵测试覆盖、运行时真实设备验证、二进制体积与构建性能开销。
-- [第三方开源协议声明](THIRD_PARTY_NOTICES.md) - libcurl、BoringSSL、Mozilla CA 证书包及 Android libc++ 的合规授权声明。
+- [第三方开源协议声明](THIRD_PARTY_NOTICES.md) - libcurl、BoringSSL、zlib、Mozilla CA 证书包及 Android libc++ 的合规授权声明。
 
 ---
 
@@ -236,7 +254,7 @@ dart pub get
 dart format --output=none --set-exit-if-changed lib hook test example tool
 dart analyze --fatal-infos
 
-# 运行全套离线单元测试（包含 31 项测试）
+# 运行全套离线单元测试（包含 73 项测试）
 dart test -r expanded
 
 # 模拟发布打包检查
@@ -249,4 +267,4 @@ dart pub publish --dry-run
 
 ## 开源协议
 
-本项目基于 [MIT 许可证](LICENSE) 发布。内置与链接的第三方组件（libcurl、BoringSSL、Mozilla CA 证书包）遵循各自的原生开源协议，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+本项目基于 [MIT 许可证](LICENSE) 发布。内置与链接的第三方组件（libcurl、BoringSSL、zlib、Mozilla CA 证书包）遵循各自的原生开源协议，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

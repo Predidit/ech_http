@@ -10,7 +10,7 @@ import 'package:ffi/ffi.dart';
 import 'package:test/test.dart';
 
 // Leave the body incomplete so disconnects prove teardown, not normal completion.
-Future<(Uri, Future<void>)> streamingServer() async {
+Future<(Uri, Future<void>)> streamingServer({bool compressed = false}) async {
   final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
   final disconnected = Completer<void>();
   final sockets = <Socket>[];
@@ -27,8 +27,15 @@ Future<(Uri, Future<void>)> streamingServer() async {
       (_) {
         if (sent) return;
         sent = true;
-        socket.write('HTTP/1.1 200 OK\r\nContent-Length: 2097152\r\n\r\n');
-        socket.add(Uint8List(1024 * 1024));
+        final bytes = compressed
+            ? gzip.encode(Uint8List(1024 * 1024))
+            : Uint8List(1024 * 1024);
+        socket.write(
+          'HTTP/1.1 200 OK\r\n'
+          '${compressed ? "Content-Encoding: gzip\r\n" : ""}'
+          'Content-Length: ${bytes.length + 1024 * 1024}\r\n\r\n',
+        );
+        socket.add(bytes);
       },
       onDone: finish,
       onError: (Object _) => finish(),
@@ -58,7 +65,8 @@ Pointer<native.NativeRequest> start(
     ..method = 'GET'.toNativeUtf8(allocator: arena)
     ..timeoutMs = 60000
     ..connectTimeoutMs = 1000
-    ..maxResponseBytes = 4 * 1024 * 1024;
+    ..maxResponseBytes = 4 * 1024 * 1024
+    ..autoUncompress = true;
   return native.requestStart(
     client,
     options,
@@ -68,43 +76,50 @@ Pointer<native.NativeRequest> start(
 });
 
 void main() {
-  test('unacknowledged port payloads stay within the body budget', () async {
-    final (uri, disconnected) = await streamingServer();
-    final port = ReceivePort();
-    addTearDown(port.close);
-    final client = native.clientCreate();
-    var request = start(client, uri, port);
-    expect(request, isNot(nullptr));
-    // The worker must retain the pool independently of its client handle.
-    native.clientDestroy(client);
-    addTearDown(() => native.requestDestroy(request));
-    var received = 0;
-    var acknowledge = false;
-    final firstBody = Completer<void>();
-    final allBody = Completer<void>();
-    port.listen((message) {
-      final event = message as List<Object?>;
-      if (event[0] != 2) return;
-      final data = event[4] as Uint8List;
-      received += data.length;
-      if (!firstBody.isCompleted) firstBody.complete();
-      if (acknowledge) native.requestAcknowledge(request, data.length);
-      if (received == 1024 * 1024) allBody.complete();
-    });
-    await firstBody.future;
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(received, inInclusiveRange(240 * 1024, 256 * 1024));
-    final stalled = received;
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(received, stalled);
-    acknowledge = true;
-    native.requestAcknowledge(request, received);
-    await allBody.future.timeout(const Duration(seconds: 3));
-    port.close();
-    native.requestDestroy(request);
-    request = nullptr;
-    await disconnected.timeout(const Duration(seconds: 3));
-  });
+  for (final compressed in [false, true]) {
+    test(
+      'unacknowledged payloads stay within budget (gzip=$compressed)',
+      () async {
+        final (uri, disconnected) = await streamingServer(
+          compressed: compressed,
+        );
+        final port = ReceivePort();
+        addTearDown(port.close);
+        final client = native.clientCreate();
+        var request = start(client, uri, port);
+        expect(request, isNot(nullptr));
+        // The worker must retain the pool independently of its client handle.
+        native.clientDestroy(client);
+        addTearDown(() => native.requestDestroy(request));
+        var received = 0;
+        var acknowledge = false;
+        final firstBody = Completer<void>();
+        final allBody = Completer<void>();
+        port.listen((message) {
+          final event = message as List<Object?>;
+          if (event[0] != 2) return;
+          final data = event[4] as Uint8List;
+          received += data.length;
+          if (!firstBody.isCompleted) firstBody.complete();
+          if (acknowledge) native.requestAcknowledge(request, data.length);
+          if (received == 1024 * 1024) allBody.complete();
+        });
+        await firstBody.future;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(received, inInclusiveRange(240 * 1024, 256 * 1024));
+        final stalled = received;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(received, stalled);
+        acknowledge = true;
+        native.requestAcknowledge(request, received);
+        await allBody.future.timeout(const Duration(seconds: 3));
+        port.close();
+        native.requestDestroy(request);
+        request = nullptr;
+        await disconnected.timeout(const Duration(seconds: 3));
+      },
+    );
+  }
 
   test('posting to a closed port cancels the native transfer safely', () async {
     final (uri, disconnected) = await streamingServer();

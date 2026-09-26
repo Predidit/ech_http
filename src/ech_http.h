@@ -26,6 +26,7 @@ typedef struct EhOptions {
   int64_t timeout_ms;
   int64_t connect_timeout_ms;
   int64_t max_response_bytes;
+  bool auto_uncompress;
 } EhOptions;
 struct _Dart_CObject;
 // NativeApi.postCObject, not an isolate-owned callback.

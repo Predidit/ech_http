@@ -20,7 +20,7 @@ dart format --output=none --set-exit-if-changed lib hook test example tool
 # 3. Strict static analysis (treat all warnings and infos as fatal)
 dart analyze --fatal-infos
 
-# 4. Run the offline test suite (37 unit and mock tests)
+# 4. Run the offline test suite (73 unit and mock tests)
 dart test -r expanded
 
 # 5. Verify package publication readiness
@@ -28,7 +28,7 @@ dart pub publish --dry-run
 ```
 
 > [!NOTE] Offline Test Scope
-> The 37 offline tests run against in-process mock HTTP/TLS servers and synthetic DNS records. They validate:
+> The 73 offline tests run against in-process mock HTTP/TLS servers and synthetic DNS records. They validate:
 > - Status codes, headers, and body streaming
 > - Upload buffering and limits
 > - Redirect policies, HTTPS downgrade refusal, and sensitive header stripping

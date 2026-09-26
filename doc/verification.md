@@ -39,14 +39,14 @@ We distinguish between three tiers of verification:
 
 ## 2. Precompiled SDK Release Registry
 
-Precompiled dependency SDKs (statically built libcurl 8.22.0 + BoringSSL) are hosted in four dedicated public repositories:
+Precompiled dependency SDKs (statically built libcurl 8.22.0 + BoringSSL + zlib 1.3.2) are hosted in four dedicated public repositories:
 
 | Build Repository | Release Tag | Target Platforms & Architectures |
 | :--- | :--- | :--- |
-| [libechhttp-win32-build](https://github.com/ech-research/libechhttp-win32-build) | `v0.1.0` | Windows: `x64`, `arm64`, `ia32` |
-| [libechhttp-darwin-build](https://github.com/ech-research/libechhttp-darwin-build) | `v0.1.1` | macOS / iOS: `x64`, `arm64` (Device + Simulator) |
-| [libechhttp-android-build](https://github.com/ech-research/libechhttp-android-build) | `v0.1.0` | Android: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` |
-| [libechhttp-linux-build](https://github.com/ech-research/libechhttp-linux-build) | `v0.1.0` | Linux: `x64`, `arm64` |
+| [libechhttp-win32-build](https://github.com/ech-research/libechhttp-win32-build) | `v0.1.1` | Windows: `x64`, `arm64`, `ia32` |
+| [libechhttp-darwin-build](https://github.com/ech-research/libechhttp-darwin-build) | `v0.1.2` | macOS / iOS: `x64`, `arm64` (Device + Simulator) |
+| [libechhttp-android-build](https://github.com/ech-research/libechhttp-android-build) | `v0.1.1` | Android: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` |
+| [libechhttp-linux-build](https://github.com/ech-research/libechhttp-linux-build) | `v0.1.1` | Linux: `x64`, `arm64` |
 
 All release archives and their SHA-256 digests are pinned in [lib/src/build_support/dependencies.json](../lib/src/build_support/dependencies.json).
 
@@ -56,13 +56,14 @@ All release archives and their SHA-256 digests are pinned in [lib/src/build_supp
 
 ```mermaid
 flowchart TD
-    subgraph OfflineSuite["Offline Unit & Integration Suite (37 Tests)"]
+    subgraph OfflineSuite["Offline Unit & Integration Suite"]
         direction TB
         T1["HTTP Semantics\n(Status Codes, Headers, Streams, Limits)"]
         T2["Security & Redirects\n(HTTPS Downgrade Refusal, Cross-Origin Stripping)"]
         T3["Concurrency & Backpressure\n(Stream Pause/Resume, Queueing, Timeouts, Abort Triggers)"]
         T4["TLS & ECH Fail-Closed\n(Hostname Verification, PKI Isolation, Unusable Config Rejection)"]
         T5["Dependency SDK Integrity\n(Hash Verification, Path Traversal Defense, Offline Repair)"]
+        T6["Gzip / IOClient Parity\n(Negotiation, Headers, Lengths, Multi-Member Streams, Decoded Limits)"]
     end
 
     subgraph LiveSuite["Live Public E2E Suite (Opt-In)"]

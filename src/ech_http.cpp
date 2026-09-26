@@ -4,6 +4,7 @@
 #endif
 #include "ech_http.h"
 #include "ca_bundle.h"
+#include "gzip_decoder.h"
 #include <dart_native_api.h>
 #include <curl/curl.h>
 #include <openssl/err.h>
@@ -176,6 +177,24 @@ std::vector<std::string> lines(const std::string &s) {
   }
   return result;
 }
+
+std::string content_encoding(const std::string &block) {
+  std::string value;
+  bool found = false;
+  for (const auto &line : lines(block)) {
+    const auto colon = line.find(':');
+    if (colon == std::string::npos) continue;
+    auto name = line.substr(0, colon);
+    for (auto &c : name) if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+    if (name != "content-encoding") continue;
+    const auto start = line.find_first_not_of(" \t", colon + 1);
+    const auto end = line.find_last_not_of(" \t");
+    if (found) value += ", ";
+    if (start != std::string::npos) value += line.substr(start, end - start + 1);
+    found = true;
+  }
+  return value;
+}
 } // namespace
 
 struct EhClient { std::shared_ptr<Pool> pool = std::make_shared<Pool>(); };
@@ -193,6 +212,9 @@ struct RequestState {
   size_t pending_bytes = 0, received_bytes = 0;
   std::string header_block, failure;
   bool in_header_block = false, sent_headers = false;
+  const bool auto_uncompress;
+  bool decode_gzip = false, decode_error = false;
+  GzipDecoder decoder;
   int retries = 0, ech_accepted = 0;
   CURL *easy = nullptr;
   std::shared_ptr<TlsState> tls;
@@ -203,7 +225,7 @@ struct RequestState {
       proxy(text(o.proxy)), config(text(o.ech_config)), ip(text(o.connect_ip)), ca(text(o.ca_pem)),
       body(o.body_length ? reinterpret_cast<const char *>(o.body) : "", o.body_length),
       timeout_ms(o.timeout_ms), connect_timeout_ms(o.connect_timeout_ms), max_bytes(o.max_response_bytes),
-      post(post), event_port(event_port) {}
+      post(post), event_port(event_port), auto_uncompress(o.auto_uncompress) {}
   void cancel() {
     // Stop posting before releasing the handle, including during isolate teardown.
     std::lock_guard<std::mutex> lock(mutex);
@@ -244,6 +266,13 @@ struct RequestState {
     return true;
   }
   void run() noexcept;
+  bool deliver(const char *data, size_t length) {
+    if (cancelled.load()) return false;
+    if (Clock::now() >= deadline) { failure = "Response consumer exceeded request timeout"; return false; }
+    if (length > static_cast<uint64_t>(max_bytes) - received_bytes) { failure = "Response exceeds maxResponseBytes"; return false; }
+    received_bytes += length;
+    return push(2, 0, data, length);
+  }
 };
 
 CURLcode configure_tls(CURL *, void *context, void *userdata) noexcept {
@@ -279,6 +308,7 @@ size_t receive_header(char *data, size_t size, size_t count, void *userdata) noe
         r->ech_accepted = SSL_ech_accepted(static_cast<SSL *>(session->internals));
       }
       if (!r->config.empty() && !r->ech_accepted) { r->failure = "Server did not accept required ECH"; return 0; }
+      r->decode_gzip = r->auto_uncompress && content_encoding(r->header_block) == "gzip";
       if (!r->push(1, static_cast<int>(status), r->header_block.data(), r->header_block.size())) return 0;
       r->sent_headers = true;
     }
@@ -290,9 +320,14 @@ size_t receive_body(char *data, size_t size, size_t count, void *userdata) noexc
   const size_t length = size * count;
   try {
     if (r->cancelled.load() || !r->sent_headers) return 0;
-    if (length > static_cast<uint64_t>(r->max_bytes) - r->received_bytes) { r->failure = "Response exceeds maxResponseBytes"; return 0; }
-    r->received_bytes += length;
-    return r->push(2, 0, data, length) ? length : 0;
+    if (r->decode_gzip) {
+      return r->decoder.write(data, length, [r](const char *bytes, size_t n) {
+        return r->deliver(bytes, n);
+      }) ? length : 0;
+    }
+    return r->deliver(data, length) ? length : 0;
+  } catch (const std::runtime_error &e) {
+    r->decode_error = true; r->failure = e.what(); return 0;
   } catch (...) { return 0; }
 }
 int progress(void *userdata, curl_off_t, curl_off_t, curl_off_t, curl_off_t) noexcept {
@@ -343,6 +378,9 @@ void RequestState::run() noexcept {
     set_option(easy, CURLOPT_SUPPRESS_CONNECT_HEADERS, 1L);
     set_option(easy, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
     set_option(easy, CURLOPT_HTTPHEADER, request_headers.value);
+    // Decode only gzip at the bridge, matching dart:io, including multi-member
+    // responses. Keep other content encodings and original headers untouched.
+    set_option(easy, CURLOPT_HTTP_CONTENT_DECODING, 0L);
     set_option(easy, CURLOPT_CONNECT_TO, destinations.value);
     set_option(easy, CURLOPT_NOSIGNAL, 1L);
     set_option(easy, CURLOPT_FOLLOWLOCATION, 0L);
@@ -384,6 +422,11 @@ void RequestState::run() noexcept {
       if (!config.empty()) set_option(easy, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_3);
       error[0] = 0;
       result = curl_easy_perform(easy);
+      if (decode_error) result = CURLE_BAD_CONTENT_ENCODING;
+      if (result == CURLE_OK && decode_gzip) {
+        try { decoder.finish(); }
+        catch (const std::runtime_error &e) { result = CURLE_BAD_CONTENT_ENCODING; failure = e.what(); }
+      }
       if (result == CURLE_ECH_REQUIRED && !sent_headers && tls->hostname_verified && !tls->retry_config.empty() && retries < 2) {
         config = tls->retry_config;
         set_option(easy, CURLOPT_FRESH_CONNECT, 1L);
@@ -411,6 +454,8 @@ EhClient *eh_client_create(void) {
   try {
     std::call_once(curl_init_flag, [] { curl_init_result = curl_global_init(CURL_GLOBAL_DEFAULT); });
     if (curl_init_result != CURLE_OK) return nullptr;
+    const auto *info = curl_version_info(CURLVERSION_NOW);
+    if (!info || !(info->features & CURL_VERSION_LIBZ)) return nullptr;
     return new EhClient();
   } catch (...) { return nullptr; }
 }

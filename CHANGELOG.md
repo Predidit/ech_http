@@ -6,6 +6,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-09-27
+
+### Changed
+- Advertise gzip by default and decode gzip response bodies on the native worker.
+  This changes the previous raw-response default; use
+  `EchClient(autoUncompress: false)` to retain compressed response bytes.
+- Match Dart HttpClient / package:http IOClient negotiation and response length
+  behavior: preserve wire headers and streamed contentLength, while buffered
+  Response.contentLength remains the decoded body size.
+- Apply the response size limit and native delivery budget to decoded bytes.
+- Pin zlib 1.3.2 in all 14 prebuilt SDK targets and verify its source digest,
+  static library, matching headers, and license during cache preparation.
+
+### Added
+- Gzip compression state, concatenated-member support, malformed/truncated
+  stream errors, and IOClient compatibility and decoded-backpressure tests.
+
+---
+
 ## [0.1.3] - 2026-09-26
 
 ### Changed

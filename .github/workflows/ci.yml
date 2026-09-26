@@ -54,6 +54,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build g++
       - run: dart pub get
       - run: dart run tool/create_flutter_smoke.dart
+      - run: dart run tool/check_native_build.dart android ia32
       - working-directory: build/flutter_smoke
         run: |
           flutter pub get

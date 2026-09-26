@@ -62,6 +62,7 @@ final class EchResponse extends http.StreamedResponse {
     super.statusCode, {
     required this.echAccepted,
     required this.echRetries,
+    this.compressionState = HttpClientResponseCompressionState.notCompressed,
     super.contentLength,
     super.request,
     super.headers,
@@ -70,6 +71,13 @@ final class EchResponse extends http.StreamedResponse {
   });
   final bool echAccepted;
   final int echRetries;
+
+  /// Whether gzip decoding was selected, following dart:io HttpClient.
+  ///
+  /// Headers and [contentLength] describe the encoded response on the wire,
+  /// even when [stream] delivers decoded bytes. For a buffered http.Response,
+  /// contentLength instead equals its bodyBytes.length, as in package:http.
+  final HttpClientResponseCompressionState compressionState;
 }
 
 /// A native transport failure, distinct from an HTTP error status response.

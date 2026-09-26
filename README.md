@@ -87,7 +87,7 @@ Add `ech_http` to your application's `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  ech_http: ^0.1.1
+  ech_http: ^0.2.0
   http: ^1.6.0
 ```
 
@@ -210,13 +210,34 @@ hooks:
 | :--- | :--- | :--- |
 | **Protocol** | `HTTP/1.1` | HTTP/2 and HTTP/3 are not supported in this release. |
 | **Max Concurrent Requests** | `6` | Native connection queue concurrency limit per client instance. |
-| **Max Response Size** | `32 MiB` | Maximum incoming stream body size; aborts if exceeded. |
+| **Max Response Size** | `32 MiB` | Maximum delivered body size after gzip decoding; aborts if exceeded. |
 | **Max Upload Size** | `8 MiB` | Upload streams are fully buffered into native memory before dispatching. |
 | **Request Timeout** | `30 s` | Per-destination attempt timeout (covers DNS connection, TLS handshake, ECH retries, and data streaming). |
 | **Connect Timeout** | `10 s` | TCP connection and initial TLS handshake timeout. |
-| **Compression** | Manual | No automatic `gzip` / `br` decompression. Request uncompressed data or decompress in Dart. |
+| **Compression** | Automatic gzip | Dart HttpClient negotiation and header/length semantics; `autoUncompress: false` disables decoding. Other encodings pass through. |
 | **Address Failover** | Supported | Automatically fails over across `addresses` for `GET` and `HEAD` requests before receiving headers. |
 | **Redirect Security** | Enforced | Rejects HTTPS-to-HTTP downgrades. Strips `Authorization`, `Cookie`, and `Host` on cross-origin redirects. |
+
+### Gzip behavior
+
+`EchClient` sends `Accept-Encoding: gzip` unless the request supplies its own
+value. Like Dart `HttpClient`, `autoUncompress` defaults to `true` and decodes
+only `Content-Encoding: gzip`. Setting it to `false` returns the original bytes
+while retaining gzip negotiation; use `Accept-Encoding: identity` to request
+an uncompressed response. Request bodies are never compressed automatically.
+
+Response headers remain unchanged. For `send()`, `EchResponse.contentLength`
+and the `Content-Length` header describe the compressed wire body, while the
+stream may contain more bytes. `compressionState` reports whether gzip decoding
+was selected. For buffered `get()`/`post()` responses, `contentLength` equals
+`bodyBytes.length`, as in `package:http`; headers still retain wire values.
+
+`maxResponseBytes` and the 256 KiB native delivery budget apply after decoding.
+Concatenated gzip members are supported. Malformed or truncated gzip streams
+fail with `EchException` (native code 61); partial bytes may already have been
+emitted. Other content encodings and `.gz` files without `Content-Encoding`
+pass through unchanged. Range requests follow Dart negotiation behavior;
+set `identity` and/or disable decoding when encoded byte offsets must be kept.
 
 ---
 
@@ -225,7 +246,7 @@ hooks:
 - [Routing & ECH Discovery](doc/routing.md) - Deep dive into DoH resolution, provider shared configurations, IP overrides, and redirect policies.
 - [Testing & Release Preparation](doc/releasing.md) - Guide for local validation, live end-to-end tests, environment variables, and pub.dev publication.
 - [Platform Verification Matrix](doc/verification.md) - Breakdown of tested platforms, CI matrix execution, binary footprint, and known constraints.
-- [Third-Party Notices](THIRD_PARTY_NOTICES.md) - Open-source licenses for libcurl, BoringSSL, Mozilla CA bundle, and Android libc++.
+- [Third-Party Notices](THIRD_PARTY_NOTICES.md) - Open-source licenses for libcurl, BoringSSL, zlib, Mozilla CA bundle, and Android libc++.
 
 ---
 
@@ -239,7 +260,7 @@ dart pub get
 dart format --output=none --set-exit-if-changed lib hook test example tool
 dart analyze --fatal-infos
 
-# Run unit and offline mock tests (31 tests)
+# Run unit and offline mock tests (73 tests)
 dart test -r expanded
 
 # Dry-run package publication
@@ -252,4 +273,4 @@ For live testing with real ECH endpoints, see [doc/releasing.md](doc/releasing.m
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE). Third-party dependencies (libcurl, BoringSSL, Mozilla CA bundle) are licensed under their respective licenses documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+This project is licensed under the [MIT License](LICENSE). Third-party dependencies (libcurl, BoringSSL, zlib, Mozilla CA bundle) are licensed under their respective licenses documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

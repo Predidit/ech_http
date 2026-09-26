@@ -20,7 +20,7 @@ dart format --output=none --set-exit-if-changed lib hook test example tool
 # 3. 严格静态语法分析（所有警告与提示信息均视作致命错误）
 dart analyze --fatal-infos
 
-# 4. 执行本地离线单元测试套件（共 37 项测试）
+# 4. 执行本地离线单元测试套件（共 73 项测试）
 dart test -r expanded
 
 # 5. 模拟执行 pub.dev 发布前置检查

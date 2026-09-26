@@ -36,14 +36,14 @@
 
 ## 2. 预编译 SDK 仓库索引
 
-预编译依赖库（静态构建的 libcurl 8.22.0 与 BoringSSL）托管在四个独立的公开构建仓库中：
+预编译依赖库（静态构建的 libcurl 8.22.0、BoringSSL 与 zlib 1.3.2）托管在四个独立的公开构建仓库中：
 
 | 构建仓库 | 发布 Tag | 支持的目标平台与架构 |
 | :--- | :--- | :--- |
-| [libechhttp-win32-build](https://github.com/ech-research/libechhttp-win32-build) | `v0.1.0` | Windows: `x64`, `arm64`, `ia32` |
-| [libechhttp-darwin-build](https://github.com/ech-research/libechhttp-darwin-build) | `v0.1.1` | macOS / iOS: `x64`, `arm64`（真机 + 模拟器） |
-| [libechhttp-android-build](https://github.com/ech-research/libechhttp-android-build) | `v0.1.0` | Android: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` |
-| [libechhttp-linux-build](https://github.com/ech-research/libechhttp-linux-build) | `v0.1.0` | Linux: `x64`, `arm64` |
+| [libechhttp-win32-build](https://github.com/ech-research/libechhttp-win32-build) | `v0.1.1` | Windows: `x64`, `arm64`, `ia32` |
+| [libechhttp-darwin-build](https://github.com/ech-research/libechhttp-darwin-build) | `v0.1.2` | macOS / iOS: `x64`, `arm64`（真机 + 模拟器） |
+| [libechhttp-android-build](https://github.com/ech-research/libechhttp-android-build) | `v0.1.1` | Android: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` |
+| [libechhttp-linux-build](https://github.com/ech-research/libechhttp-linux-build) | `v0.1.1` | Linux: `x64`, `arm64` |
 
 每个 SDK 压缩包的 SHA-256 散列均固化在 [lib/src/build_support/dependencies.json](../lib/src/build_support/dependencies.json) 中。
 
@@ -53,13 +53,14 @@
 
 ```mermaid
 flowchart TD
-    subgraph OfflineSuite["离线单元与集成测试套件 (37 项)"]
+    subgraph OfflineSuite["离线单元与集成测试套件"]
         direction TB
         T1["HTTP 协议规范\n(状态码、响应头、流式读写、大小上限)"]
         T2["安全与重定向拦截\n(拒绝 HTTPS 降级、跨域请求头剥离)"]
         T3["并发控制与背压机制\n(流暂停/恢复、并发排队、超时熔断、Abort 中断)"]
         T4["TLS 与 ECH 闭门原则\n(证书链与主机名核验、PKI 隔离、不可用配置拒绝)"]
         T5["预编译 SDK 安全防护\n(散列比对、路径穿越防御、文件篡改自愈)"]
+        T6["Gzip / IOClient 对照\n(协商、响应头与长度、多成员流、解压后大小限制)"]
     end
 
     subgraph LiveSuite["公网 Live 端到端验证 (按需开启)"]

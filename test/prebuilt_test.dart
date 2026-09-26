@@ -9,12 +9,17 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 const _revision = 'cff1385e77b9b2095558fa625b3c35d589ffe09b';
+const _zlibDigest =
+    'bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16';
 
 List<int> _sdk({
   String target = 'windows-x64',
   String revision = _revision,
   Map<String, String> extra = const {},
   bool omitCrypto = false,
+  bool omitZlib = false,
+  String zlibVersion = '1.3.2',
+  String zlibDigest = _zlibDigest,
 }) {
   final files = <String, String>{
     'cmake/EchHttpDeps.cmake': 'verified cmake',
@@ -23,6 +28,10 @@ List<int> _sdk({
     'lib/curl.lib': 'curl static library',
     'lib/ssl.lib': 'ssl static library',
     if (!omitCrypto) 'lib/crypto.lib': 'crypto static library',
+    if (!omitZlib) 'lib/zlib.lib': 'zlib static library',
+    'include/zlib.h': 'zlib header',
+    'include/zconf.h': 'zlib configuration',
+    'licenses/ZLIB_LICENSE': 'zlib license',
     ...extra,
   };
   final archive = Archive();
@@ -37,6 +46,7 @@ List<int> _sdk({
       'release': 'v0.1.0',
       'curl': {'version': '8.22.0'},
       'boringssl': {'revision': revision},
+      'zlib': {'version': zlibVersion, 'sha256': zlibDigest},
       'files': {
         for (final file in files.entries)
           file.key: sha256.convert(utf8.encode(file.value)).toString(),
@@ -54,6 +64,8 @@ PrebuiltDependency _pin(List<int> bytes) => PrebuiltDependency(
   digest: sha256.convert(bytes).toString(),
   curlVersion: '8.22.0',
   boringRevision: _revision,
+  zlibVersion: '1.3.2',
+  zlibDigest: _zlibDigest,
 );
 
 void main() {
@@ -150,6 +162,9 @@ void main() {
     ('wrong architecture', _sdk(target: 'windows-arm64')),
     ('wrong BoringSSL revision', _sdk(revision: '0' * 40)),
     ('missing static library', _sdk(omitCrypto: true)),
+    ('missing zlib library', _sdk(omitZlib: true)),
+    ('wrong zlib version', _sdk(zlibVersion: '1.3.1')),
+    ('wrong zlib source digest', _sdk(zlibDigest: '0' * 64)),
     ('path traversal', _sdk(extra: {'../escaped.txt': 'escape'})),
     ('Windows absolute path', _sdk(extra: {'C:/escaped.txt': 'escape'})),
   ]) {

@@ -26,6 +26,8 @@ final class NativeOptions extends Struct {
   external int connectTimeoutMs;
   @Int64()
   external int maxResponseBytes;
+  @Bool()
+  external bool autoUncompress;
 }
 
 typedef PostCObject = Int8 Function(Int64, Pointer<Dart_CObject>);

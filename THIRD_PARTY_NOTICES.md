@@ -10,6 +10,7 @@ The `ech_http` native library statically links and bundles the following open-so
 | :--- | :--- | :--- | :--- |
 | **libcurl** | 8.22.0<br>[Source Archive](https://curl.se/download/curl-8.22.0.tar.xz) | curl License (MIT/X-style) | [`src/CURL_LICENSE`](src/CURL_LICENSE) |
 | **BoringSSL** | Git Commit: [`cff1385e`](https://github.com/google/boringssl/tree/cff1385e77b9b2095558fa625b3c35d589ffe09b) | OpenSSL / ISC / BSD / Apache-2.0 | [`src/BORINGSSL_LICENSE`](src/BORINGSSL_LICENSE) |
+| **zlib** | 1.3.2<br>[Source Archive](https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz) | zlib License | [`src/ZLIB_LICENSE`](src/ZLIB_LICENSE) |
 | **Mozilla Root CA Bundle** | Mozilla Snapshot: `2026-08-13`<br>[curl CA Extract](https://curl.se/docs/caextract.html) | Mozilla Public License 2.0 (MPL-2.0) | [`src/CA_BUNDLE_LICENSE`](src/CA_BUNDLE_LICENSE) |
 | **Android NDK libc++** | Statically linked on Android target ABIs | Apache-2.0 with LLVM Exceptions | [`src/LIBCXX_LICENSE`](src/LIBCXX_LICENSE) |
 
@@ -29,7 +30,7 @@ The unmodified root certificate bundle is embedded directly within the library s
 
 ## 3. Application Distribution Guidelines
 
-- **Flutter Applications**: You can expose Dart dependencies automatically using Flutter's built-in `showLicensePage()`. In addition, native notices (libcurl, BoringSSL, Mozilla CA bundle, and NDK libc++) should be registered via Flutter's `LicenseRegistry`:
+- **Flutter Applications**: You can expose Dart dependencies automatically using Flutter's built-in `showLicensePage()`. In addition, native notices (libcurl, BoringSSL, zlib, Mozilla CA bundle, and NDK libc++) should be registered via Flutter's `LicenseRegistry`:
   ```dart
   import 'package:flutter/foundation.dart';
   import 'package:flutter/services.dart';
@@ -41,6 +42,9 @@ The unmodified root certificate bundle is embedded directly within the library s
       
       final bsslLicense = await rootBundle.loadString('licenses/BORINGSSL_LICENSE');
       yield LicenseEntryWithLineBreaks(['ech_http (BoringSSL)'], bsslLicense);
+
+      final zlibLicense = await rootBundle.loadString('licenses/ZLIB_LICENSE');
+      yield LicenseEntryWithLineBreaks(['ech_http (zlib)'], zlibLicense);
     });
   }
   ```

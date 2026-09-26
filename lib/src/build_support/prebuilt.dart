@@ -24,6 +24,8 @@ final class PrebuiltDependency {
     required this.digest,
     required this.curlVersion,
     required this.boringRevision,
+    required this.zlibVersion,
+    required this.zlibDigest,
   }) {
     if (!RegExp(r'^[a-z0-9-]+$').hasMatch(target) ||
         !RegExp(r'^[0-9a-f]{64}$').hasMatch(digest) ||
@@ -49,10 +51,13 @@ final class PrebuiltDependency {
       digest: entry['sha256'] as String,
       curlVersion: manifest['curl']['version'] as String,
       boringRevision: manifest['boringssl']['revision'] as String,
+      zlibVersion: manifest['zlib']['version'] as String,
+      zlibDigest: manifest['zlib']['sha256'] as String,
     );
   }
 
   final String target, release, digest, curlVersion, boringRevision;
+  final String zlibVersion, zlibDigest;
   final Uri url;
 }
 
@@ -150,7 +155,9 @@ Future<String> preparePrebuilt(
         metadata['release'] != dependency.release ||
         metadata['target'] != dependency.target ||
         metadata['curl']['version'] != dependency.curlVersion ||
-        metadata['boringssl']['revision'] != dependency.boringRevision) {
+        metadata['boringssl']['revision'] != dependency.boringRevision ||
+        metadata['zlib']?['version'] != dependency.zlibVersion ||
+        metadata['zlib']?['sha256'] != dependency.zlibDigest) {
       throw StateError(
         'Dependency SDK metadata does not match the pinned target',
       );
@@ -162,7 +169,11 @@ Future<String> preparePrebuilt(
       'cmake/EchHttpDeps.cmake',
       'include/curl/curl.h',
       'include/openssl/ssl.h',
-      for (final lib in ['curl', 'ssl', 'crypto']) 'lib/$prefix$lib.$extension',
+      'include/zlib.h',
+      'include/zconf.h',
+      'licenses/ZLIB_LICENSE',
+      for (final lib in ['curl', 'ssl', 'crypto', 'zlib'])
+        'lib/$prefix$lib.$extension',
     ]) {
       if (!hashes.containsKey(name)) throw StateError('Incomplete SDK: $name');
     }
