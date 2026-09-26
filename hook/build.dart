@@ -74,6 +74,13 @@ Future<void> main(List<String> args) async {
       ...tools.arguments,
     ];
     final parallel = '${math.min(Platform.numberOfProcessors, 8)}';
+    final dartInclude = p.join(
+      p.dirname(p.dirname(Platform.resolvedExecutable)),
+      'include',
+    );
+    for (final header in ['dart_native_api.h', 'dart_api.h']) {
+      output.dependencies.add(Uri.file(p.join(dartInclude, header)));
+    }
     final nativeBuild = p.join(out, 'native');
     stderr.writeln(
       'ech_http: compiling C++ bridge with prebuilt $target dependencies',
@@ -85,6 +92,7 @@ Future<void> main(List<String> args) async {
       nativeBuild,
       ...common,
       '-DEH_DEPS_ROOT=$sdk',
+      '-DEH_DART_INCLUDE=$dartInclude',
     ]);
     await runner.run(tools.cmake, [
       '--build',

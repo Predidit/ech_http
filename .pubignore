@@ -1,4 +1,6 @@
 .github/
+.vscode/
+.idea/
 .dart_tool/
 build/
 coverage/

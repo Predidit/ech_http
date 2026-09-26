@@ -4,6 +4,14 @@
 
 This document provides a detailed technical report of the multi-platform verification status, automated CI test coverage, binary footprint metrics, and known deployment boundaries for `ech_http`.
 
+The event-delivery update was verified on Windows x64 / Dart 3.13.4: static
+analysis and all 37 offline tests passed; 2 opt-in live tests were skipped.
+Coverage includes timer-free delivery, delayed listeners, repeated pauses,
+paused cancellation, bounded messages, closed ports, and active transfers during
+isolate-group teardown. The native smoke tool also compiled and received a
+terminal event. Interactive Flutter hot reload/restart has not been verified
+for this update; the platform matrix below records earlier verification.
+
 ---
 
 ## 1. Multi-Platform Verification Matrix
@@ -48,7 +56,7 @@ All release archives and their SHA-256 digests are pinned in [lib/src/build_supp
 
 ```mermaid
 flowchart TD
-    subgraph OfflineSuite["Offline Unit & Integration Suite (31 Tests)"]
+    subgraph OfflineSuite["Offline Unit & Integration Suite (37 Tests)"]
         direction TB
         T1["HTTP Semantics\n(Status Codes, Headers, Streams, Limits)"]
         T2["Security & Redirects\n(HTTPS Downgrade Refusal, Cross-Origin Stripping)"]

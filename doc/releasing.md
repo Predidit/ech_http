@@ -20,7 +20,7 @@ dart format --output=none --set-exit-if-changed lib hook test example tool
 # 3. Strict static analysis (treat all warnings and infos as fatal)
 dart analyze --fatal-infos
 
-# 4. Run the offline test suite (31 unit and mock tests)
+# 4. Run the offline test suite (37 unit and mock tests)
 dart test -r expanded
 
 # 5. Verify package publication readiness
@@ -28,7 +28,7 @@ dart pub publish --dry-run
 ```
 
 > [!NOTE] Offline Test Scope
-> The 31 offline tests run against in-process mock HTTP/TLS servers and synthetic DNS records. They validate:
+> The 37 offline tests run against in-process mock HTTP/TLS servers and synthetic DNS records. They validate:
 > - Status codes, headers, and body streaming
 > - Upload buffering and limits
 > - Redirect policies, HTTPS downgrade refusal, and sensitive header stripping
@@ -38,6 +38,7 @@ dart pub publish --dry-run
 > - Custom PKI root isolation and hostname verification
 > - ECH fail-closed enforcement and unusable public name rejection
 > - Binary SDK cache verification, offline reuse, and file self-repair
+> - Message-port delivery, bounded acknowledgements, and isolate-group teardown
 
 ---
 
@@ -133,7 +134,7 @@ To update it:
 
 ## 4. Multi-Platform CI Matrix
 
-The repository includes a GitHub Actions CI workflow (`.github/workflows/native.yml`) covering:
+The repository includes a GitHub Actions CI workflow (`.github/workflows/ci.yml`) covering:
 - Windows desktop runners (MSVC x64, cross-compile arm64/ia32)
 - Linux desktop runners (glibc x64 and arm64)
 - macOS desktop runners (Intel x64 and Apple Silicon arm64)

@@ -102,6 +102,78 @@ void main() {
     expect(seen, ['POST payload', 'GET ']);
   });
 
+  test('large responses complete without a periodic event pump', () async {
+    final expected = Uint8List.fromList(List.generate(2000000, (i) => i % 251));
+    final server = await serve((r) async {
+      r.response.add(expected);
+      await r.response.close();
+    });
+    var periodicTimers = 0;
+    final response = await runZoned(
+      () => client(limit: expected.length).get(url(server)),
+      zoneSpecification: ZoneSpecification(
+        createPeriodicTimer: (self, parent, zone, period, callback) {
+          periodicTimers++;
+          return parent.createPeriodicTimer(zone, period, callback);
+        },
+      ),
+    );
+    expect(response.bodyBytes, expected);
+    expect(periodicTimers, 0);
+  });
+
+  test(
+    'a delayed listener can pause repeatedly without losing wakeups',
+    () async {
+      final expected = Uint8List.fromList(
+        List.generate(900000, (i) => i % 251),
+      );
+      final server = await serve((r) async {
+        r.response.add(expected);
+        await r.response.close();
+      });
+      final response = await client().send(http.Request('GET', url(server)));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final received = BytesBuilder(copy: false);
+      final complete = Completer<void>();
+      var pauses = 0;
+      late StreamSubscription<List<int>> subscription;
+      subscription = response.stream.listen(
+        (data) {
+          received.add(data);
+          if (pauses++ < 8) {
+            subscription.pause(
+              Future<void>.delayed(const Duration(milliseconds: 5)),
+            );
+          }
+        },
+        onDone: complete.complete,
+        onError: complete.completeError,
+      );
+      await complete.future.timeout(const Duration(seconds: 3));
+      expect(pauses, greaterThanOrEqualTo(8));
+      expect(received.takeBytes(), expected);
+    },
+  );
+
+  test('cancelling a paused response immediately releases its slot', () async {
+    final server = await serve((r) async {
+      if (r.uri.path == '/large') {
+        r.response.add(Uint8List(900000));
+      } else {
+        r.response.write('next');
+      }
+      await r.response.close();
+    });
+    final c = client(concurrency: 1);
+    final response = await c.send(http.Request('GET', url(server, '/large')));
+    final subscription = response.stream.listen((_) {});
+    subscription.pause();
+    final next = c.get(url(server));
+    await subscription.cancel();
+    expect((await next.timeout(const Duration(seconds: 1))).body, 'next');
+  });
+
   test('cross-origin redirect removes sensitive headers', () async {
     String? authorization, cookie;
     final target = await serve((r) async {

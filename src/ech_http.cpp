@@ -4,6 +4,7 @@
 #endif
 #include "ech_http.h"
 #include "ca_bundle.h"
+#include <dart_native_api.h>
 #include <curl/curl.h>
 #include <openssl/err.h>
 #include <openssl/bytestring.h>
@@ -13,9 +14,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
-#include <cstdlib>
 #include <cstring>
-#include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -26,7 +25,7 @@
 
 namespace {
 using Clock = std::chrono::steady_clock;
-constexpr size_t kQueueLimit = 256 * 1024;
+constexpr size_t kBodyBufferLimit = 256 * 1024;
 constexpr size_t kHeaderLimit = 128 * 1024;
 std::once_flag curl_init_flag;
 CURLcode curl_init_result = CURLE_FAILED_INIT;
@@ -143,9 +142,7 @@ void handshake_info(const SSL *ssl, int where, int result) noexcept {
   auto *state = tls_state(ssl);
   if (!state) return;
   if (where & SSL_CB_HANDSHAKE_START) {
-    // This pinned BoringSSL invokes START before selecting an ECHConfig or
-    // creating ClientHello. Let its own parser enforce no-plaintext fallback,
-    // including valid configurations it silently considers unusable.
+    // BoringSSL invokes START before ECH selection and ClientHello construction.
     SSL_set_reject_unusable_ech_config(const_cast<SSL *>(ssl), state->require_ech);
     return;
   }
@@ -183,72 +180,88 @@ std::vector<std::string> lines(const std::string &s) {
 
 struct EhClient { std::shared_ptr<Pool> pool = std::make_shared<Pool>(); };
 
-struct EhRequest {
+namespace {
+struct RequestState {
   std::shared_ptr<Pool> pool;
   std::string url, method, headers, proxy, config, ip, ca, body, hostname, port;
   int64_t timeout_ms, connect_timeout_ms, max_bytes;
   std::atomic<bool> cancelled{false};
   std::mutex mutex;
   std::condition_variable room;
-  std::deque<EhEvent *> events;
-  size_t queued_bytes = 0, received_bytes = 0;
+  const EhPostCObject post;
+  const int64_t event_port;
+  size_t pending_bytes = 0, received_bytes = 0;
   std::string header_block, failure;
   bool in_header_block = false, sent_headers = false;
   int retries = 0, ech_accepted = 0;
   CURL *easy = nullptr;
   std::shared_ptr<TlsState> tls;
   Clock::time_point deadline;
-  std::thread worker;
 
-  EhRequest(std::shared_ptr<Pool> p, const EhOptions &o)
+  RequestState(std::shared_ptr<Pool> p, const EhOptions &o, EhPostCObject post, int64_t event_port)
     : pool(std::move(p)), url(text(o.url)), method(text(o.method)), headers(text(o.headers)),
       proxy(text(o.proxy)), config(text(o.ech_config)), ip(text(o.connect_ip)), ca(text(o.ca_pem)),
       body(o.body_length ? reinterpret_cast<const char *>(o.body) : "", o.body_length),
-      timeout_ms(o.timeout_ms), connect_timeout_ms(o.connect_timeout_ms), max_bytes(o.max_response_bytes) {}
-  ~EhRequest() {
-    if (worker.joinable()) worker.join();
-    for (auto *event : events) eh_event_destroy(event);
+      timeout_ms(o.timeout_ms), connect_timeout_ms(o.connect_timeout_ms), max_bytes(o.max_response_bytes),
+      post(post), event_port(event_port) {}
+  void cancel() {
+    // Stop posting before releasing the handle, including during isolate teardown.
+    std::lock_guard<std::mutex> lock(mutex);
+    cancelled.store(true);
+    room.notify_all();
   }
   bool push(int type, int code, const char *data, size_t length) {
     std::unique_lock<std::mutex> lock(mutex);
     if (type == 2) {
-      while (queued_bytes + length > kQueueLimit && !cancelled.load()) {
+      while (pending_bytes + length > kBodyBufferLimit && !cancelled.load()) {
         if (room.wait_until(lock, deadline) == std::cv_status::timeout) { failure = "Response consumer exceeded request timeout"; return false; }
       }
-      if (cancelled.load()) return false;
     }
-    auto *event = static_cast<EhEvent *>(std::calloc(1, sizeof(EhEvent)));
-    if (!event) return false;
-    event->data = length ? static_cast<uint8_t *>(std::malloc(length)) : nullptr;
-    if (length && !event->data) { std::free(event); return false; }
-    if (length) std::memcpy(event->data, data, length);
-    event->type = type; event->code = code; event->length = length;
-    event->ech_accepted = ech_accepted; event->ech_retries = retries;
-    try { events.push_back(event); } catch (...) { eh_event_destroy(event); throw; }
-    queued_bytes += length;
+    if (cancelled.load()) return false;
+    Dart_CObject fields[5] = {};
+    const int values[] = {type, code, ech_accepted, retries};
+    Dart_CObject *items[5];
+    for (int i = 0; i < 4; ++i) {
+      fields[i].type = Dart_CObject_kInt32;
+      fields[i].value.as_int32 = values[i];
+      items[i] = &fields[i];
+    }
+    fields[4].type = Dart_CObject_kTypedData;
+    fields[4].value.as_typed_data.type = Dart_TypedData_kUint8;
+    fields[4].value.as_typed_data.length = static_cast<intptr_t>(length);
+    fields[4].value.as_typed_data.values = reinterpret_cast<const uint8_t *>(data);
+    items[4] = &fields[4];
+    Dart_CObject message = {};
+    message.type = Dart_CObject_kArray;
+    message.value.as_array.length = 5;
+    message.value.as_array.values = items;
+    // The VM copies kTypedData before post returns.
+    if (!post(event_port, &message)) {
+      cancelled.store(true);
+      return false;
+    }
+    if (type == 2) pending_bytes += length;
     return true;
   }
   void run() noexcept;
 };
 
-namespace {
 CURLcode configure_tls(CURL *, void *context, void *userdata) noexcept {
-  auto *request = static_cast<EhRequest *>(userdata);
+  auto *request = static_cast<RequestState *>(userdata);
   auto *ctx = static_cast<SSL_CTX *>(context);
   try {
     const int index = tls_state_index();
     if (index < 0) return CURLE_OUT_OF_MEMORY;
     auto *state = new std::shared_ptr<TlsState>(request->tls);
     if (!SSL_CTX_set_ex_data(ctx, index, state)) { delete state; return CURLE_OUT_OF_MEMORY; }
-    // libcurl normally checks certificates after the handshake. ECH rejection
-    // exits the handshake early, so authenticate the public name here as well.
+    // ECH rejection precedes curl's certificate check; verify the public name here.
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_certificate);
     SSL_CTX_set_info_callback(ctx, handshake_info);
     return CURLE_OK;
   } catch (...) { return CURLE_OUT_OF_MEMORY; }
 }
 size_t receive_header(char *data, size_t size, size_t count, void *userdata) noexcept {
-  auto *r = static_cast<EhRequest *>(userdata);
+  auto *r = static_cast<RequestState *>(userdata);
   const size_t length = size * count;
   try {
     if (r->cancelled.load()) return 0;
@@ -273,7 +286,7 @@ size_t receive_header(char *data, size_t size, size_t count, void *userdata) noe
   } catch (...) { return 0; }
 }
 size_t receive_body(char *data, size_t size, size_t count, void *userdata) noexcept {
-  auto *r = static_cast<EhRequest *>(userdata);
+  auto *r = static_cast<RequestState *>(userdata);
   const size_t length = size * count;
   try {
     if (r->cancelled.load() || !r->sent_headers) return 0;
@@ -283,7 +296,7 @@ size_t receive_body(char *data, size_t size, size_t count, void *userdata) noexc
   } catch (...) { return 0; }
 }
 int progress(void *userdata, curl_off_t, curl_off_t, curl_off_t, curl_off_t) noexcept {
-  return static_cast<EhRequest *>(userdata)->cancelled.load() ? 1 : 0;
+  return static_cast<RequestState *>(userdata)->cancelled.load() ? 1 : 0;
 }
 struct List {
   curl_slist *value = nullptr;
@@ -294,9 +307,8 @@ struct List {
     value = next;
   }
 };
-}
 
-void EhRequest::run() noexcept {
+void RequestState::run() noexcept {
   CURLcode result = CURLE_FAILED_INIT;
   std::string key;
   try {
@@ -359,7 +371,7 @@ void EhRequest::run() noexcept {
     char error[CURL_ERROR_SIZE] = {};
     set_option(easy, CURLOPT_ERRORBUFFER, error);
     for (retries = 0; retries <= 2; ++retries) {
-      if (cancelled.load()) { result = CURLE_ABORTED_BY_CALLBACK; break; }
+      if (cancelled.load()) break;
       auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - Clock::now()).count();
       if (remaining <= 0) { result = CURLE_OPERATION_TIMEDOUT; break; }
       set_option(easy, CURLOPT_TIMEOUT_MS, static_cast<long>(remaining));
@@ -384,10 +396,14 @@ void EhRequest::run() noexcept {
   } catch (const std::exception &e) { result = CURLE_FAILED_INIT; failure = e.what(); }
     catch (...) { result = CURLE_FAILED_INIT; failure = "Unknown native exception"; }
   if (easy) { curl_easy_cleanup(easy); easy = nullptr; }
-  if (cancelled.load()) { result = CURLE_ABORTED_BY_CALLBACK; failure = "Request cancelled"; }
+  if (cancelled.load()) return;
   if (result != CURLE_OK && failure.empty()) failure = curl_easy_strerror(result);
   try { push(result == CURLE_OK ? 3 : 4, result, failure.data(), failure.size()); } catch (...) {}
 }
+} // namespace
+
+// Dart owns the handle; the worker independently owns the shared state.
+struct EhRequest { std::shared_ptr<RequestState> state; };
 
 extern "C" {
 const char *eh_version(void) { return curl_version(); }
@@ -399,23 +415,24 @@ EhClient *eh_client_create(void) {
   } catch (...) { return nullptr; }
 }
 void eh_client_destroy(EhClient *client) { delete client; }
-EhRequest *eh_request_start(EhClient *client, const EhOptions *options) {
-  if (!client || !options || options->timeout_ms <= 0 || options->max_response_bytes <= 0) return nullptr;
+EhRequest *eh_request_start(EhClient *client, const EhOptions *options, EhPostCObject post, int64_t port) {
+  if (!client || !options || !post || port == 0 || options->timeout_ms <= 0 || options->max_response_bytes <= 0) return nullptr;
   try {
-    auto request = std::make_unique<EhRequest>(client->pool, *options);
-    request->worker = std::thread([r = request.get()] { r->run(); });
+    auto request = std::make_unique<EhRequest>();
+    request->state = std::make_shared<RequestState>(client->pool, *options, post, port);
+    std::thread([state = request->state] { state->run(); }).detach();
     return request.release();
   } catch (...) { return nullptr; }
 }
-EhEvent *eh_request_poll(EhRequest *r) {
-  std::lock_guard<std::mutex> lock(r->mutex);
-  if (r->events.empty()) return nullptr;
-  auto *event = r->events.front(); r->events.pop_front();
-  r->queued_bytes -= event->length;
-  r->room.notify_one();
-  return event;
+void eh_request_acknowledge(EhRequest *r, size_t bytes) {
+  auto &state = *r->state;
+  std::lock_guard<std::mutex> lock(state.mutex);
+  if (bytes <= state.pending_bytes) state.pending_bytes -= bytes;
+  state.room.notify_one();
 }
-void eh_request_cancel(EhRequest *r) { r->cancelled.store(true); r->room.notify_all(); }
-void eh_request_destroy(EhRequest *r) { delete r; }
-void eh_event_destroy(EhEvent *event) { if (event) { std::free(event->data); std::free(event); } }
+void eh_request_destroy(EhRequest *r) {
+  if (!r) return;
+  r->state->cancel();
+  delete r;
+}
 }

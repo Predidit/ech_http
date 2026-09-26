@@ -25,6 +25,8 @@ flowchart TD
 
     subgraph NativeBridge["In-Process Native Bridge (FFI)"]
         EchClient -->|"dart:ffi"| Bridge["ech_http.cpp (C++17 Bridge)"]
+        Bridge -->|"Dart_PostCObject: copied events"| Events["ReceivePort"]
+        Events -->|"headers / body / completion"| EchClient
         Bridge -->|"TLS 1.3 + ECH Handshake"| BoringSSL["BoringSSL\n(Statically Linked)"]
         Bridge -->|"HTTP/1.1 Engine + Proxy"| Libcurl["libcurl\n(Statically Linked)"]
         Bridge -->|"CA Validation"| MozRoots["Mozilla Root CA Bundle\n(Built-in / Overridable)"]
@@ -37,6 +39,17 @@ flowchart TD
         CMakeNinja -->|"Bundle Native Library"| OutputLib["ech_http.dll / .so / .dylib"]
     end
 ```
+
+Each native request worker posts copied response events to a Dart `ReceivePort`
+through
+[`NativeApi.postCObject`](https://api.dart.dev/dart-ffi/NativeApi/postCObject.html)
+without polling or `NativeCallable`. Stream pauses withhold acknowledgements,
+limiting unconsumed native body data to 256 KiB per request.
+
+Cancellation stops posting and releases the request handle without waiting for
+network I/O. Workers retain their state until exit; native finalizers handle
+unreachable objects and isolate-group teardown. Close clients explicitly for
+prompt cleanup.
 
 ---
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -15,7 +16,7 @@ import 'types.dart';
 /// fallback. Null uses ordinary certificate-verified TLS. Response bodies are
 /// streamed with bounded native buffering. Upload bodies are buffered up to
 /// [maxRequestBytes]. Call [close] when the client is no longer needed.
-final class EchClient extends http.BaseClient {
+final class EchClient extends http.BaseClient implements Finalizable {
   EchClient({
     this.resolver,
     this.proxy,
@@ -51,6 +52,7 @@ final class EchClient extends http.BaseClient {
     if (_client == nullptr) {
       throw StateError('Unable to initialize the native HTTP backend');
     }
+    _finalizer.attach(this, _client.cast(), detach: this);
   }
 
   final EchResolver? resolver;
@@ -63,6 +65,12 @@ final class EchClient extends http.BaseClient {
 
   /// Replaces the bundled Mozilla CA roots for this client, e.g. for private PKI.
   final String? trustedRootsPem;
+  static final _finalizer = NativeFinalizer(
+    Native.addressOf<
+          NativeFunction<Void Function(Pointer<native.NativeClient>)>
+        >(native.clientDestroy)
+        .cast(),
+  );
   late Pointer<native.NativeClient> _client;
   final Set<_Transfer> _transfers = {};
   final Set<_Operation> _operations = {};
@@ -145,7 +153,6 @@ final class EchClient extends http.BaseClient {
       }
       final next = uri.resolve(location);
       _validateUrl(next);
-      // Do not silently turn an encrypted connection into cleartext HTTP.
       if (uri.scheme == 'https' && next.scheme != 'https') {
         throw http.ClientException('HTTPS downgrade redirect refused', next);
       }
@@ -282,6 +289,7 @@ final class EchClient extends http.BaseClient {
     for (final transfer in _transfers.toList()) {
       transfer.cancel(http.ClientException('Client is closed', transfer.uri));
     }
+    _finalizer.detach(this);
     native.clientDestroy(_client);
     _client = nullptr;
   }
@@ -311,7 +319,7 @@ final class _Operation {
   }
 }
 
-final class _Transfer {
+final class _Transfer implements Finalizable {
   _Transfer(
     this.client,
     this.original,
@@ -331,149 +339,165 @@ final class _Transfer {
         throw ArgumentError('Invalid HTTP header');
       }
     }
-    pointer = using((arena) {
-      final opts = arena<native.NativeOptions>();
-      opts.ref
-        ..url = uri.toString().toNativeUtf8(allocator: arena)
-        ..method = method.toNativeUtf8(allocator: arena)
-        ..headers = headers.entries
-            .where(
-              (e) => !{
-                'content-length',
-                'transfer-encoding',
-              }.contains(e.key.toLowerCase()),
-            )
-            .map((e) => '${e.key}: ${e.value}')
-            .join('\r\n')
-            .toNativeUtf8(allocator: arena)
-        ..proxy = (client.proxy?.toString() ?? '').toNativeUtf8(
-          allocator: arena,
-        )
-        ..echConfig = (route?.configList ?? '').toNativeUtf8(allocator: arena)
-        ..connectIp = address.toNativeUtf8(allocator: arena)
-        ..caPem = (client.trustedRootsPem ?? '').toNativeUtf8(allocator: arena)
-        ..bodyLength = bytes.length
-        ..timeoutMs = client.timeout.inMilliseconds
-        ..connectTimeoutMs = client.connectTimeout.inMilliseconds
-        ..maxResponseBytes = client.maxResponseBytes;
-      if (bytes.isNotEmpty) {
-        opts.ref.body = arena<Uint8>(bytes.length);
-        opts.ref.body.asTypedList(bytes.length).setAll(0, bytes);
-      }
-      return native.requestStart(client._client, opts);
-    });
-    if (pointer == nullptr) {
-      throw StateError('Unable to start native request');
-    }
+    events = ReceivePort('ech_http response');
+    subscription = events.listen(_onEvent);
     body = StreamController<List<int>>(
-      onListen: () {
-        listening = true;
-        _pump();
-      },
-      onPause: () {
-        paused = true;
-      },
-      onResume: () {
-        paused = false;
-        _pump();
-      },
-      onCancel: () {
-        consumerCancelled = true;
-        cancel(http.RequestAbortedException(uri));
-      },
+      onListen: _updateDelivery,
+      onPause: _updateDelivery,
+      onResume: _updateDelivery,
+      onCancel: () => _finish(null),
     );
-    timer = Timer.periodic(const Duration(milliseconds: 10), (_) => _pump());
+    try {
+      pointer = using((arena) {
+        final opts = arena<native.NativeOptions>();
+        opts.ref
+          ..url = uri.toString().toNativeUtf8(allocator: arena)
+          ..method = method.toNativeUtf8(allocator: arena)
+          ..headers = headers.entries
+              .where(
+                (e) => !{
+                  'content-length',
+                  'transfer-encoding',
+                }.contains(e.key.toLowerCase()),
+              )
+              .map((e) => '${e.key}: ${e.value}')
+              .join('\r\n')
+              .toNativeUtf8(allocator: arena)
+          ..proxy = (client.proxy?.toString() ?? '').toNativeUtf8(
+            allocator: arena,
+          )
+          ..echConfig = (route?.configList ?? '').toNativeUtf8(allocator: arena)
+          ..connectIp = address.toNativeUtf8(allocator: arena)
+          ..caPem = (client.trustedRootsPem ?? '').toNativeUtf8(
+            allocator: arena,
+          )
+          ..bodyLength = bytes.length
+          ..timeoutMs = client.timeout.inMilliseconds
+          ..connectTimeoutMs = client.connectTimeout.inMilliseconds
+          ..maxResponseBytes = client.maxResponseBytes;
+        if (bytes.isNotEmpty) {
+          opts.ref.body = arena<Uint8>(bytes.length);
+          opts.ref.body.asTypedList(bytes.length).setAll(0, bytes);
+        }
+        return native.requestStart(
+          client._client,
+          opts,
+          NativeApi.postCObject,
+          events.sendPort.nativePort,
+        );
+      });
+      if (pointer == nullptr) {
+        throw StateError('Unable to start native request');
+      }
+      _finalizer.attach(this, pointer.cast(), detach: this);
+    } catch (_) {
+      events.close();
+      unawaited(subscription.cancel());
+      unawaited(body.close());
+      if (pointer != nullptr) native.requestDestroy(pointer);
+      rethrow;
+    }
   }
 
   final EchClient client;
   final http.BaseRequest original;
   final Uri uri;
   final Completer<EchResponse> response = Completer();
-  late Pointer<native.NativeRequest> pointer;
-  late StreamController<List<int>> body;
-  late Timer timer;
-  bool listening = false, paused = false, done = false;
-  bool consumerCancelled = false;
-  Object? cancellation;
+  static final _finalizer = NativeFinalizer(
+    Native.addressOf<
+          NativeFunction<Void Function(Pointer<native.NativeRequest>)>
+        >(native.requestDestroy)
+        .cast(),
+  );
+  Pointer<native.NativeRequest> pointer = nullptr;
+  late final StreamController<List<int>> body;
+  late final ReceivePort events;
+  late final StreamSubscription<Object?> subscription;
+  bool done = false;
+  bool deliveryPaused = false;
 
-  void cancel(Object reason) {
-    if (done || cancellation != null) return;
-    cancellation = reason;
-    native.requestCancel(pointer);
-    _pump();
+  void cancel(Object reason) => _finish(reason);
+
+  void _updateDelivery() {
+    if (done) return;
+    // Pausing port delivery withholds acknowledgements and bounds native output.
+    final shouldPause =
+        response.isCompleted && (!body.hasListener || body.isPaused);
+    if (shouldPause == deliveryPaused) return;
+    deliveryPaused = shouldPause;
+    if (shouldPause) {
+      subscription.pause();
+    } else {
+      subscription.resume();
+    }
   }
 
-  void _pump() {
+  void _onEvent(Object? message) {
     if (done) return;
-    for (var i = 0; i < 32; i++) {
-      if (cancellation == null &&
-          response.isCompleted &&
-          (!listening || paused)) {
-        return;
+    final event = message as List<Object?>;
+    final type = event[0] as int;
+    final code = event[1] as int;
+    final data = event[4] as Uint8List;
+    if (type == 1) {
+      final lines = latin1.decode(data).split('\r\n');
+      final headers = <String, String>{};
+      for (final line in lines.skip(1)) {
+        final colon = line.indexOf(':');
+        if (colon <= 0) continue;
+        final key = line.substring(0, colon).trim().toLowerCase();
+        final text = line.substring(colon + 1).trim();
+        headers.update(
+          key,
+          (previous) => '$previous, $text',
+          ifAbsent: () => text,
+        );
       }
-      final event = native.requestPoll(pointer);
-      if (event == nullptr) return;
-      try {
-        final value = event.ref;
-        final data = value.length == 0
-            ? Uint8List(0)
-            : Uint8List.fromList(value.data.asTypedList(value.length));
-        if (value.type == 1 && cancellation == null) {
-          final lines = latin1.decode(data).split('\r\n');
-          final headers = <String, String>{};
-          for (final line in lines.skip(1)) {
-            final colon = line.indexOf(':');
-            if (colon <= 0) continue;
-            final key = line.substring(0, colon).trim().toLowerCase();
-            final text = line.substring(colon + 1).trim();
-            headers.update(
-              key,
-              (previous) => '$previous, $text',
-              ifAbsent: () => text,
-            );
-          }
-          response.complete(
-            EchResponse(
-              body.stream,
-              value.code,
-              echAccepted: value.echAccepted != 0,
-              echRetries: value.echRetries,
-              contentLength: int.tryParse(headers['content-length'] ?? ''),
-              request: original,
-              headers: headers,
-              isRedirect: const {301, 302, 303, 307, 308}.contains(value.code),
-              reasonPhrase: lines.first.split(' ').skip(2).join(' '),
-            ),
-          );
-        } else if (value.type == 2 && cancellation == null) {
-          body.add(data);
-        } else if (value.type == 3 || value.type == 4) {
-          final error =
-              cancellation ??
-              (value.type == 4
-                  ? EchException(
-                      utf8.decode(data, allowMalformed: true),
-                      uri: uri,
-                      nativeCode: value.code,
-                    )
-                  : null);
-          done = true;
-          timer.cancel();
-          native.requestDestroy(pointer);
-          client._finished(this);
-          if (!response.isCompleted) {
-            response.completeError(
-              error ?? EchException('Response ended without headers', uri: uri),
-            );
-          } else if (error != null && !consumerCancelled && !body.isClosed) {
-            body.addError(error);
-          }
-          unawaited(body.close());
-          return;
-        }
-      } finally {
-        native.eventDestroy(event);
-      }
+      response.complete(
+        EchResponse(
+          body.stream,
+          code,
+          echAccepted: event[2] != 0,
+          echRetries: event[3] as int,
+          contentLength: int.tryParse(headers['content-length'] ?? ''),
+          request: original,
+          headers: headers,
+          isRedirect: const {301, 302, 303, 307, 308}.contains(code),
+          reasonPhrase: lines.first.split(' ').skip(2).join(' '),
+        ),
+      );
+      _updateDelivery();
+    } else if (type == 2) {
+      body.add(data);
+      native.requestAcknowledge(pointer, data.length);
+    } else if (type == 3 || type == 4) {
+      _finish(
+        type == 4
+            ? EchException(
+                utf8.decode(data, allowMalformed: true),
+                uri: uri,
+                nativeCode: code,
+              )
+            : null,
+      );
     }
+  }
+
+  void _finish(Object? error) {
+    if (done) return;
+    done = true;
+    events.close();
+    unawaited(subscription.cancel());
+    _finalizer.detach(this);
+    native.requestDestroy(pointer);
+    pointer = nullptr;
+    client._finished(this);
+    if (!response.isCompleted) {
+      response.completeError(
+        error ?? EchException('Response ended without headers', uri: uri),
+      );
+    } else if (error != null) {
+      body.addError(error);
+    }
+    unawaited(body.close());
   }
 }

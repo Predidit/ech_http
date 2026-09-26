@@ -2,6 +2,7 @@
 #define ECH_HTTP_H
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #ifdef _WIN32
 #define EH_EXPORT __declspec(dllexport)
 #else
@@ -26,25 +27,19 @@ typedef struct EhOptions {
   int64_t connect_timeout_ms;
   int64_t max_response_bytes;
 } EhOptions;
-// type: 1=headers, 2=body chunk, 3=complete, 4=error.
-typedef struct EhEvent {
-  int32_t type;
-  int32_t code;
-  int32_t ech_accepted;
-  int32_t ech_retries;
-  size_t length;
-  uint8_t *data;
-} EhEvent;
+struct _Dart_CObject;
+// NativeApi.postCObject, not an isolate-owned callback.
+typedef bool (*EhPostCObject)(int64_t port, struct _Dart_CObject *message);
 EH_EXPORT const char *eh_version(void);
 EH_EXPORT EhClient *eh_client_create(void);
 EH_EXPORT void eh_client_destroy(EhClient *client);
-// Options are copied before this returns. Never blocks for network I/O.
-EH_EXPORT EhRequest *eh_request_start(EhClient *, const EhOptions *);
-EH_EXPORT EhEvent *eh_request_poll(EhRequest *);
-EH_EXPORT void eh_request_cancel(EhRequest *);
-// Only call after receiving the terminal event (3 or 4).
+// Copies options; posts [type, code, ech_accepted, ech_retries, Uint8List].
+// Types: 1=headers, 2=body, 3=complete, 4=error. Payloads are VM-owned copies.
+EH_EXPORT EhRequest *eh_request_start(EhClient *, const EhOptions *, EhPostCObject, int64_t port);
+// Releases consumed body bytes from the 256 KiB delivery budget.
+EH_EXPORT void eh_request_acknowledge(EhRequest *, size_t bytes);
+// Stops posting and cancels without joining; safe for NativeFinalizer.
 EH_EXPORT void eh_request_destroy(EhRequest *);
-EH_EXPORT void eh_event_destroy(EhEvent *);
 #ifdef __cplusplus
 }
 #endif

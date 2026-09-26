@@ -10,6 +10,9 @@ if(NOT DEFINED EH_DEPS_ROOT)
   message(FATAL_ERROR "Use the Dart build hook to supply the verified dependency SDK")
 endif()
 include("${EH_DEPS_ROOT}/cmake/EchHttpDeps.cmake")
+if(NOT EXISTS "${EH_DART_INCLUDE}/dart_native_api.h")
+  message(FATAL_ERROR "Use the Dart build hook to supply EH_DART_INCLUDE from the active Dart SDK")
+endif()
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/cacert.pem" EH_CA_PEM)
 configure_file(ca_bundle.h.in "${CMAKE_CURRENT_BINARY_DIR}/ca_bundle.h" @ONLY)
@@ -17,7 +20,7 @@ add_library(ech_http SHARED ech_http.cpp)
 # Imported includes default to -isystem, which can lose to a host OpenSSL
 # installation in /usr/local/include. Always prefer this SDK's pinned headers.
 set_target_properties(ech_http PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
-target_include_directories(ech_http PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+target_include_directories(ech_http PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "${EH_DART_INCLUDE}")
 target_link_libraries(ech_http PRIVATE EchHttp::curl)
 find_package(Threads REQUIRED)
 target_link_libraries(ech_http PRIVATE Threads::Threads)

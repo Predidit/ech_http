@@ -20,7 +20,7 @@ dart format --output=none --set-exit-if-changed lib hook test example tool
 # 3. 严格静态语法分析（所有警告与提示信息均视作致命错误）
 dart analyze --fatal-infos
 
-# 4. 执行本地离线单元测试套件（共 31 项测试）
+# 4. 执行本地离线单元测试套件（共 37 项测试）
 dart test -r expanded
 
 # 5. 模拟执行 pub.dev 发布前置检查
@@ -38,6 +38,7 @@ dart pub publish --dry-run
 > - 自定义私有 PKI 信任根隔离与域名匹配校验
 > - ECH 闭门失败原则（Fail-closed）与不可用公开名的前置拦截
 > - 预编译 SDK 归档散列校验、离线安全提取与本地被篡改文件的自愈修复
+> - 消息端口投递、消费确认额度及 isolate group 关闭时的清理
 
 ---
 
@@ -133,7 +134,7 @@ dart run example/ech_http_example.dart https://crypto.cloudflare.com/cdn-cgi/tra
 
 ## 4. 多平台持续集成（CI）矩阵
 
-项目的 GitHub Actions 流水线（`.github/workflows/native.yml`）涵盖了多平台验证：
+项目的 GitHub Actions 流水线（`.github/workflows/ci.yml`）涵盖了多平台验证：
 - Windows 环境（MSVC x64 原生构建、arm64/ia32 交叉构建）
 - Linux 环境（glibc x64 与 arm64 构建及测试）
 - macOS 环境（Intel x64 与 Apple Silicon arm64 构建及测试）

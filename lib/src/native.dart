@@ -28,19 +28,7 @@ final class NativeOptions extends Struct {
   external int maxResponseBytes;
 }
 
-final class NativeEvent extends Struct {
-  @Int32()
-  external int type;
-  @Int32()
-  external int code;
-  @Int32()
-  external int echAccepted;
-  @Int32()
-  external int echRetries;
-  @Size()
-  external int length;
-  external Pointer<Uint8> data;
-}
+typedef PostCObject = Int8 Function(Int64, Pointer<Dart_CObject>);
 
 @Native<Pointer<Utf8> Function()>(symbol: 'eh_version', assetId: _asset)
 external Pointer<Utf8> nativeVersion();
@@ -55,29 +43,26 @@ external Pointer<NativeClient> clientCreate();
 )
 external void clientDestroy(Pointer<NativeClient> client);
 @Native<
-  Pointer<NativeRequest> Function(Pointer<NativeClient>, Pointer<NativeOptions>)
+  Pointer<NativeRequest> Function(
+    Pointer<NativeClient>,
+    Pointer<NativeOptions>,
+    Pointer<NativeFunction<PostCObject>>,
+    Int64,
+  )
 >(symbol: 'eh_request_start', assetId: _asset)
 external Pointer<NativeRequest> requestStart(
   Pointer<NativeClient> client,
   Pointer<NativeOptions> options,
+  Pointer<NativeFunction<PostCObject>> post,
+  int port,
 );
-@Native<Pointer<NativeEvent> Function(Pointer<NativeRequest>)>(
-  symbol: 'eh_request_poll',
+@Native<Void Function(Pointer<NativeRequest>, Size)>(
+  symbol: 'eh_request_acknowledge',
   assetId: _asset,
 )
-external Pointer<NativeEvent> requestPoll(Pointer<NativeRequest> request);
-@Native<Void Function(Pointer<NativeRequest>)>(
-  symbol: 'eh_request_cancel',
-  assetId: _asset,
-)
-external void requestCancel(Pointer<NativeRequest> request);
+external void requestAcknowledge(Pointer<NativeRequest> request, int bytes);
 @Native<Void Function(Pointer<NativeRequest>)>(
   symbol: 'eh_request_destroy',
   assetId: _asset,
 )
 external void requestDestroy(Pointer<NativeRequest> request);
-@Native<Void Function(Pointer<NativeEvent>)>(
-  symbol: 'eh_event_destroy',
-  assetId: _asset,
-)
-external void eventDestroy(Pointer<NativeEvent> event);

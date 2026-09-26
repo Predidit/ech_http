@@ -25,6 +25,8 @@ flowchart TD
 
     subgraph NativeBridge["进程内原生桥接层 (FFI)"]
         EchClient -->|"dart:ffi 内存调用"| Bridge["ech_http.cpp (C++17 胶水层)"]
+        Bridge -->|"Dart_PostCObject：数据副本"| Events["ReceivePort 消息端口"]
+        Events -->|"响应头 / 数据 / 结束事件"| EchClient
         Bridge -->|"TLS 1.3 + ECH 握手"| BoringSSL["BoringSSL\n(静态链接)"]
         Bridge -->|"HTTP/1.1 传输引擎 + 代理"| Libcurl["libcurl\n(静态链接)"]
         Bridge -->|"CA 证书链校验"| MozRoots["Mozilla 根证书库\n(内置 / 支持自定义替换)"]
@@ -37,6 +39,14 @@ flowchart TD
         CMakeNinja -->|"打包原生动态库"| OutputLib["ech_http.dll / .so / .dylib"]
     end
 ```
+
+每个请求的原生工作线程通过
+[`NativeApi.postCObject`](https://api.dart.dev/dart-ffi/NativeApi/postCObject.html)
+将响应事件的数据副本投递到独立的 `ReceivePort`，不使用轮询或 `NativeCallable`。
+暂停响应流会停止消费确认，将每个请求未消费的原生响应体数据限制在 256 KiB 内。
+
+取消请求会停止投递并释放请求句柄，无需等待网络 I/O。工作线程持有自身状态直到退出；
+原生终结器处理对象不可达及 isolate group 关闭时的清理。仍应主动关闭客户端以便及时回收。
 
 ---
 

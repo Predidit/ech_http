@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.3] - 2026-09-26
+
+### Changed
+- Replace the 10 ms response polling timer with native `Dart_PostCObject` events
+  delivered through per-request receive ports, without `NativeCallable`.
+- Preserve the 256 KiB streaming budget with body acknowledgements.
+- Release request handles without joining network threads; retain worker state
+  through cancellation and clean up abandoned handles with native finalizers.
+- Update the internal C ABI and build hooks for Dart SDK message-port headers.
+
+### Added
+- Regression coverage for timer-free delivery, repeated stream pauses, bounded
+  in-flight messages, closed ports, and isolate group shutdown during transfers.
+
+---
+
 ## [0.1.2]
 
 ### Changed
